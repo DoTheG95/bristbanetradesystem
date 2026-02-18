@@ -1,15 +1,25 @@
-'use client';
+ 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import FacebookLogin from '@greatsumini/react-facebook-login';
 
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const logged = localStorage.getItem('bts_logged_in');
+    if (logged === '1') {
+      router.replace('/main');
+    }
+  }, [router]);
 
   return (
     <div
-      className="flex min-h-screen items-center justify-center font-sans"
+      className="relative flex min-h-screen items-center justify-center font-sans"
       style={{
         backgroundImage: "url('/digivice.png')",
         backgroundPosition: 'center 0% ',
@@ -23,6 +33,15 @@ export default function Home() {
             onSuccess={(response) => {
               console.log('Login Success!', response);
               setIsLoggedIn(true);
+              if (typeof window !== 'undefined') {
+                try {
+                  localStorage.setItem('bts_logged_in', '1');
+                  localStorage.setItem('bts_profile', JSON.stringify(response));
+                } catch (e) {
+                  console.warn('Failed to persist login', e);
+                }
+              }
+              router.push('/main');
             }}
             onFail={(error) => {
               console.log('Login Failed!', error);
