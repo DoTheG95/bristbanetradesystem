@@ -8,9 +8,16 @@ export default function Home() {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
+    <div
+      className="flex min-h-screen items-center justify-center font-sans"
+      style={{
+        backgroundImage: "url('/digivice.png')",
+        backgroundPosition: 'center 0% ',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
+      <main className="flex w-full max-w-3xl flex-col items-center justify-center py-32 px-16">
+        <div className="flex flex-col items-center gap-6 text-center">
           <FacebookLogin
             appId="512306471565792"
             onSuccess={(response) => {
@@ -32,7 +39,7 @@ export default function Home() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '12px',
-                  padding: '13px 24px',
+                  padding: '13px 18px',
                   background: isHovered ? '#1a77f2' : '#1877F2',
                   color: '#fff',
                   border: 'none',
@@ -51,7 +58,6 @@ export default function Home() {
                   justifyContent: 'center',
                 }}
               >
-                {/* Facebook "f" SVG Logo */}
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
