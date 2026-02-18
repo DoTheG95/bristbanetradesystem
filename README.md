@@ -1,3 +1,47 @@
+# Facebook-only signup/login (Next.js)
+
+This adds a minimal Facebook-only sign-in flow using `next-auth`.
+
+Files added:
+- `pages/api/auth/[...nextauth].js` — NextAuth configuration (Facebook provider)
+- `pages/auth/login.js` — Login screen with a Facebook button
+- `pages/_app.js` — Wraps app with `SessionProvider`
+- `pages/index.js` — Simple protected/home view
+- `.env.local.example` — example environment variables
+
+Setup
+
+1. Install `next-auth` (and ensure `next`/`react` are installed):
+
+```bash
+npm install next-auth
+# or
+# pnpm add next-auth
+```
+
+2. Create a Facebook App and get the `APP ID` and `APP SECRET`.
+
+3. Copy `.env.local.example` to `.env.local` and set values:
+
+```text
+NEXTAUTH_URL=http://localhost:3000
+FACEBOOK_CLIENT_ID=your_app_id
+FACEBOOK_CLIENT_SECRET=your_app_secret
+```
+
+4. In your Facebook App settings, set the OAuth redirect URI to:
+
+```
+http://localhost:3000/api/auth/callback/facebook
+```
+
+5. Run the dev server:
+
+```bash
+npm run dev
+```
+
+Visit `/auth/login` to use the Facebook-only sign-in.
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
