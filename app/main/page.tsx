@@ -66,8 +66,6 @@ export default function MainPage() {
     closeModal();
   }, [closeModal]);
 
-  // Search handling has been moved into `SearchModal` component.
-
   if (!authorized) return null;
 
   return (

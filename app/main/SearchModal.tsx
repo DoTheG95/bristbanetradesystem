@@ -147,33 +147,35 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
             className="w-full text-black px-3 py-2 border border-gray-300 rounded mb-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
           />
 
-          <div className="absolute left-0 right-0 mt-1 z-40">
-            <div className="max-h-56 overflow-auto bg-white border border-gray-200 rounded shadow">
-              {loadingResults && <div className="px-3 py-2 text-sm text-gray-500">Searching…</div>}
-              {!loadingResults && results.length === 0 && <div className="px-3 py-2 text-sm text-gray-500">No results</div>}
-              {results.map((r) => (
-                <button
-                  key={r.tcgplayer_id || r.id || r.tcgplayer_name}
-                  onClick={() => {
-                    // add to selected items as a removable chip
-                    setSelectedItems((prev) => {
-                      const exists = prev.some((p) => p.id === r.id);
-                      if (exists) return prev;
-                      return [...prev, { id: r.id, combinedName: r.combinedName, tcgplayer_name: r.tcgplayer_name, card_number: r.card_number, raw: r.raw }];
-                    });
-                    // clear input so user can search again
-                    setModalText('');
-                    setResults([]);
-                    setSelectedCard(null);
-                  }}
-                  className="w-full text-left px-3 py-2 hover:bg-indigo-50"
-                >
-                  <div className="text-sm font-medium text-gray-900">{r.combinedName || r.tcgplayer_name || r.id}</div>
-                  <div className="text-xs text-gray-500">card_number: {r.card_number} · tcgplayer_id: {r.tcgplayer_id}</div>
-                </button>
-              ))}
+          {modalText.trim().length > 0 && (
+            <div className="absolute left-0 right-0 mt-1 z-40">
+              <div className="max-h-56 overflow-auto bg-white border border-gray-200 rounded shadow">
+                {loadingResults && <div className="px-3 py-2 text-sm text-gray-500">Searching…</div>}
+                {!loadingResults && results.length === 0 && <div className="px-3 py-2 text-sm text-gray-500">No results</div>}
+                {results.map((r) => (
+                  <button
+                    key={r.tcgplayer_id || r.id || r.tcgplayer_name}
+                    onClick={() => {
+                      // add to selected items as a removable chip
+                      setSelectedItems((prev) => {
+                        const exists = prev.some((p) => p.id === r.id);
+                        if (exists) return prev;
+                        return [...prev, { id: r.id, combinedName: r.combinedName, tcgplayer_name: r.tcgplayer_name, card_number: r.card_number, raw: r.raw }];
+                      });
+                      // clear input so user can search again
+                      setModalText('');
+                      setResults([]);
+                      setSelectedCard(null);
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-indigo-50"
+                  >
+                    <div className="text-sm font-medium text-gray-900">{r.combinedName || r.tcgplayer_name || r.id}</div>
+                    <div className="text-xs text-gray-500">card_number: {r.card_number} · tcgplayer_id: {r.tcgplayer_id}</div>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-3 mt-4">
@@ -183,6 +185,7 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
               setModalText('');
               setResults([]);
               setSelectedCard(null);
+              setSelectedItems([]);
               onClose();
             }}
             className="px-3 py-1 rounded bg-red-500 text-white hover:bg-red-700"
