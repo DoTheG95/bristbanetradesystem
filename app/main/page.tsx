@@ -1,84 +1,72 @@
- 'use client';
+'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useCallback, useEffect, useState } from 'react';
 import SearchModal from './SearchModal';
+import { getToken, getSession, clearToken, isTokenExpired, type Session } from '@/lib/auth';
 
 export default function MainPage() {
-  const router = useRouter();
-  const [authorized, setAuthorized] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [checking, setChecking] = useState(true);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const logged = localStorage.getItem('bts_logged_in');
-    if (logged === '1') {
-      setAuthorized(true);
-    } else {
-      router.replace('/');
+    const token = getToken();
+    console.log('MainPage: token =', token);
+    console.log('MainPage: isExpired =', token ? isTokenExpired(token) : 'n/a');
+    console.log('MainPage: session =', token ? getSession() : 'n/a');
+  
+    if (!token || isTokenExpired(token)) {
+      clearToken();
+      window.location.replace('/');
+      return;
     }
-  }, [router]);
+  
+    const decoded = getSession();
+    if (!decoded) {
+      clearToken();
+      window.location.replace('/');
+      return;
+    }
+  
+    setSession(decoded);
+    setChecking(false);
+  }, []);
 
   const handleLogout = useCallback(() => {
-    if (typeof window !== 'undefined') {
-      const win: any = window as any;
-      const cleanupAndRedirect = () => {
-        try {
-          localStorage.removeItem('bts_logged_in');
-          localStorage.removeItem('bts_profile');
-        } catch (e) {
-          console.warn('Error clearing localStorage', e);
-        }
-        router.push('/');
-      };
+    clearToken();
+    window.location.replace('/');
+  }, []);
 
-      if (win.FB && typeof win.FB.logout === 'function') {
-        try {
-          const authResponse =
-            typeof win.FB.getAuthResponse === 'function'
-              ? win.FB.getAuthResponse()
-              : null;
-
-          if (authResponse && authResponse.accessToken) {
-            win.FB.logout(() => {
-              cleanupAndRedirect();
-            });
-          } else {
-            cleanupAndRedirect();
-          }
-        } catch (e) {
-          console.warn('FB logout failed', e);
-          cleanupAndRedirect();
-        }
-      } else {
-        cleanupAndRedirect();
-      }
-    } else {
-      router.push('/');
-    }
-  }, [router]);
-
-  const [showModal, setShowModal] = useState(false);
   const openModal = useCallback(() => setShowModal(true), []);
   const closeModal = useCallback(() => setShowModal(false), []);
 
   const handleAdd = useCallback((val?: any) => {
-    console.log(val);
+    console.log('Adding card(s) for user', session?.sub, val);
     closeModal();
-  }, [closeModal]);
+  }, [closeModal, session]);
 
-  // Search handling has been moved into `SearchModal` component.
-
-  if (!authorized) return null;
+  // Show nothing while checking auth — prevents flash before redirect
+  if (checking || !session) return null;
 
   return (
     <div className="flex min-h-screen flex-col bg-black/5 font-sans">
       <nav className="w-full border-b bg-white/60 backdrop-blur-sm">
         <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
           <div className="text-lg font-semibold">BTS</div>
-          <div>
+          <div className="flex items-center gap-3">
+            {session.avatar_url && (
+              <img
+                src={session.avatar_url}
+                alt={session.name ?? 'User'}
+                className="w-8 h-8 rounded-full object-cover"
+              />
+            )}
+            {session.name && (
+              <span className="text-sm text-gray-700">{session.name}</span>
+            )}
             <button
               onClick={handleLogout}
-              className="px-3 py-1 rounded bg-red-500 text-white hover:bg-red-600"
+              className="px-3 py-1 rounded bg-red-500 text-white hover:bg-red-600 text-sm"
             >
               Logout
             </button>
@@ -89,8 +77,7 @@ export default function MainPage() {
       <main className="flex-1 w-full flex items-center justify-center">
         <div className="w-full max-w-3xl p-16 flex flex-col items-center gap-6">
           <h1 className="text-3xl font-semibold">Main Page</h1>
-          <p >Search for Digimon cards here:</p>
-
+          <p>Search for Digimon cards here:</p>
           <div className="w-full mt-6 flex justify-center">
             <button
               aria-label="Open add"
@@ -100,7 +87,6 @@ export default function MainPage() {
               <span className="text-2xl">+</span>
             </button>
           </div>
-
           <SearchModal open={showModal} onClose={closeModal} onAdd={handleAdd} />
         </div>
       </main>
