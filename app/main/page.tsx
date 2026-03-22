@@ -4,92 +4,260 @@ import React, { useCallback, useEffect, useState } from 'react';
 import SearchModal from './SearchModal';
 import { getToken, getSession, clearToken, isTokenExpired, type Session } from '@/lib/auth';
 
-export default function MainPage() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [checking, setChecking] = useState(true);
-  const [showModal, setShowModal] = useState(false);
+type ListType = 'wishlist' | 'tradelist';
 
+interface CardEntry {
+  id: string;             // local uuid for optimistic UI
+  tcgplayer_id: string;
+  tcgplayer_name: string;
+  card_number: string;
+  quantity: number | null;
+  note: string;
+}
+
+const EMPTY: Record<ListType, CardEntry[]> = { wishlist: [], tradelist: [] };
+
+export default function MainPage() {
+  const [session, setSession]       = useState<Session | null>(null);
+  const [checking, setChecking]     = useState(true);
+  const [activeTab, setActiveTab]   = useState<ListType>('wishlist');
+  const [lists, setLists]           = useState<Record<ListType, CardEntry[]>>(EMPTY);
+  const [showModal, setShowModal]   = useState(false);
+  const [saving, setSaving]         = useState(false);
+
+  /* ── auth guard ── */
   useEffect(() => {
     const token = getToken();
-    console.log('MainPage: token =', token);
-    console.log('MainPage: isExpired =', token ? isTokenExpired(token) : 'n/a');
-    console.log('MainPage: session =', token ? getSession() : 'n/a');
-  
-    if (!token || isTokenExpired(token)) {
-      clearToken();
-      window.location.replace('/');
-      return;
-    }
-  
+    if (!token || isTokenExpired(token)) { clearToken(); window.location.replace('/'); return; }
     const decoded = getSession();
-    if (!decoded) {
-      clearToken();
-      window.location.replace('/');
-      return;
-    }
-  
+    if (!decoded) { clearToken(); window.location.replace('/'); return; }
     setSession(decoded);
     setChecking(false);
   }, []);
 
-  const handleLogout = useCallback(() => {
-    clearToken();
-    window.location.replace('/');
+  /* ── add cards from modal ── */
+  const handleAdd = useCallback((val: any) => {
+    const incoming: any[] = Array.isArray(val) ? val : [val];
+    setLists(prev => {
+      const existing = prev[activeTab];
+      const next = [...existing];
+      for (const item of incoming) {
+        const tcgplayer_id = String(item.raw?.tcgplayer_id ?? item.tcgplayer_id ?? item.id ?? '');
+        if (!tcgplayer_id) continue;
+        if (next.some(c => c.tcgplayer_id === tcgplayer_id)) continue; // no dupes
+        next.push({
+          id: crypto.randomUUID(),
+          tcgplayer_id,
+          tcgplayer_name: item.tcgplayer_name ?? item.combinedName ?? '',
+          card_number: item.card_number ?? '',
+          quantity: null,
+          note: '',
+        });
+      }
+      return { ...prev, [activeTab]: next };
+    });
+    setShowModal(false);
+  }, [activeTab]);
+
+  /* ── remove card ── */
+  const removeCard = useCallback((tab: ListType, id: string) => {
+    setLists(prev => ({ ...prev, [tab]: prev[tab].filter(c => c.id !== id) }));
   }, []);
 
-  const openModal = useCallback(() => setShowModal(true), []);
-  const closeModal = useCallback(() => setShowModal(false), []);
+  /* ── update quantity ── */
+  const updateQty = useCallback((tab: ListType, id: string, raw: string) => {
+    const n = parseInt(raw, 10);
+    setLists(prev => ({
+      ...prev,
+      [tab]: prev[tab].map(c => c.id === id ? { ...c, quantity: isNaN(n) || n < 1 ? null : n } : c),
+    }));
+  }, []);
 
-  const handleAdd = useCallback((val?: any) => {
-    console.log('Adding card(s) for user', session?.sub, val);
-    closeModal();
-  }, [closeModal, session]);
+  /* ── save to DB (stub — wire to /api/cards later) ── */
+  const handleSave = useCallback(async () => {
+    setSaving(true);
+    // TODO: POST lists[activeTab] to /api/cards with session.sub
+    await new Promise(r => setTimeout(r, 800)); // stub
+    setSaving(false);
+  }, [activeTab, lists, session]);
 
-  // Show nothing while checking auth — prevents flash before redirect
+  const handleLogout = useCallback(() => { clearToken(); window.location.replace('/'); }, []);
+
   if (checking || !session) return null;
 
+  const cards = lists[activeTab];
+
   return (
-    <div className="flex min-h-screen flex-col bg-black/5 font-sans">
-      <nav className="w-full border-b bg-white/60 backdrop-blur-sm">
-        <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
-          <div className="text-lg font-semibold">BTS</div>
-          <div className="flex items-center gap-3">
+    <div style={{ minHeight: '100vh', background: '#0c0c0e', fontFamily: "'DM Sans', 'Segoe UI', sans-serif", color: '#e8e6e0' }}>
+
+      {/* ── nav ── */}
+      <nav style={{ borderBottom: '1px solid #1e1e24', background: '#0c0c0e', position: 'sticky', top: 0, zIndex: 10 }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 24px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em', color: '#e8e6e0' }}>BTS</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {session.avatar_url && (
-              <img
-                src={session.avatar_url}
-                alt={session.name ?? 'User'}
-                className="w-8 h-8 rounded-full object-cover"
-              />
+              <img src={session.avatar_url} alt={session.name ?? ''} style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid #2a2a32' }} />
             )}
-            {session.name && (
-              <span className="text-sm text-gray-700">{session.name}</span>
-            )}
-            <button
-              onClick={handleLogout}
-              className="px-3 py-1 rounded bg-red-500 text-white hover:bg-red-600 text-sm"
-            >
+            {session.name && <span style={{ fontSize: 13, color: '#888' }}>{session.name}</span>}
+            <button onClick={handleLogout} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid #2a2a32', background: 'transparent', color: '#888', cursor: 'pointer' }}>
               Logout
             </button>
           </div>
         </div>
       </nav>
 
-      <main className="flex-1 w-full flex items-center justify-center">
-        <div className="w-full max-w-3xl p-16 flex flex-col items-center gap-6">
-          <h1 className="text-3xl font-semibold">Main Page</h1>
-          <p>Search for Digimon cards here:</p>
-          <div className="w-full mt-6 flex justify-center">
-            <button
-              aria-label="Open add"
-              onClick={openModal}
-              className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-indigo-600 text-white shadow hover:bg-indigo-700"
-            >
-              <span className="text-2xl">+</span>
-            </button>
-          </div>
-          <SearchModal open={showModal} onClose={closeModal} onAdd={handleAdd} />
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 24px' }}>
+
+        {/* ── page title ── */}
+        <div style={{ marginBottom: 32 }}>
+          <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.03em', margin: 0, color: '#e8e6e0' }}>My Lists</h1>
+          <p style={{ fontSize: 14, color: '#555', marginTop: 6 }}>Track cards you want and cards you're trading away.</p>
         </div>
-      </main>
+
+        {/* ── tab bar ── */}
+        <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: '#141418', borderRadius: 10, padding: 4, width: 'fit-content' }}>
+          {(['wishlist', 'tradelist'] as ListType[]).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              style={{
+                padding: '7px 20px',
+                borderRadius: 7,
+                border: 'none',
+                fontSize: 13,
+                fontWeight: 500,
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+                background: activeTab === tab ? '#1e1e28' : 'transparent',
+                color: activeTab === tab ? '#e8e6e0' : '#555',
+                boxShadow: activeTab === tab ? '0 1px 3px rgba(0,0,0,0.4)' : 'none',
+              }}
+            >
+              {tab === 'wishlist' ? '✦ Wishlist' : '⇄ Trade list'}
+              {lists[tab].length > 0 && (
+                <span style={{ marginLeft: 7, fontSize: 11, background: activeTab === tab ? '#2e2e3e' : '#1e1e24', color: '#888', padding: '1px 7px', borderRadius: 99 }}>
+                  {lists[tab].length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* ── card table ── */}
+        <div style={{ background: '#111115', border: '1px solid #1e1e24', borderRadius: 12, overflow: 'hidden', marginBottom: 20 }}>
+
+          {/* table header */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px 90px 36px', gap: 8, padding: '10px 16px', borderBottom: '1px solid #1e1e24', background: '#0e0e12' }}>
+            {['Card', 'Number', 'Qty', ''].map((h, i) => (
+              <span key={i} style={{ fontSize: 10, fontWeight: 600, color: '#444', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{h}</span>
+            ))}
+          </div>
+
+          {/* rows */}
+          {cards.length === 0 ? (
+            <div style={{ padding: '48px 16px', textAlign: 'center', color: '#333', fontSize: 14 }}>
+              {activeTab === 'wishlist' ? 'No cards on your wishlist yet.' : 'No cards on your trade list yet.'}<br />
+              <span style={{ fontSize: 12, color: '#2a2a32' }}>Use the + button below to add cards.</span>
+            </div>
+          ) : (
+            cards.map((card, i) => (
+              <div
+                key={card.id}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 110px 90px 36px',
+                  gap: 8,
+                  alignItems: 'center',
+                  padding: '10px 16px',
+                  borderBottom: i < cards.length - 1 ? '1px solid #18181e' : 'none',
+                  transition: 'background 0.1s',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#141418')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                {/* name + id */}
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {card.tcgplayer_name || '—'}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#444', fontFamily: 'monospace', marginTop: 1 }}>
+                    tcg:{card.tcgplayer_id}
+                  </div>
+                </div>
+
+                {/* card number */}
+                <div style={{ fontSize: 12, color: '#555', fontFamily: 'monospace' }}>{card.card_number || '—'}</div>
+
+                {/* qty */}
+                <input
+                  type="number"
+                  min={1}
+                  value={card.quantity ?? ''}
+                  onChange={e => updateQty(activeTab, card.id, e.target.value)}
+                  placeholder="—"
+                  title="Quantity (optional)"
+                  style={{
+                    width: '100%',
+                    padding: '4px 8px',
+                    background: '#18181e',
+                    border: '1px solid #2a2a32',
+                    borderRadius: 6,
+                    color: '#d4d2cc',
+                    fontSize: 13,
+                    textAlign: 'center',
+                    outline: 'none',
+                  }}
+                />
+
+                {/* remove */}
+                <button
+                  onClick={() => removeCard(activeTab, card.id)}
+                  title="Remove"
+                  style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid #2a2a32', background: 'transparent', color: '#444', cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#c0392b'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#c0392b'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#444'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#2a2a32'; }}
+                >
+                  ×
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* ── action bar ── */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <button
+            onClick={() => setShowModal(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '9px 18px', borderRadius: 8,
+              border: '1px solid #2a2a32', background: '#141418',
+              color: '#d4d2cc', fontSize: 13, fontWeight: 500, cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#3a3a48'; (e.currentTarget as HTMLButtonElement).style.background = '#1a1a22'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#2a2a32'; (e.currentTarget as HTMLButtonElement).style.background = '#141418'; }}
+          >
+            <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> Add cards
+          </button>
+
+          <button
+            onClick={handleSave}
+            disabled={saving || cards.length === 0}
+            style={{
+              padding: '9px 24px', borderRadius: 8, border: 'none',
+              background: saving || cards.length === 0 ? '#1e1e28' : '#4f46e5',
+              color: saving || cards.length === 0 ? '#444' : '#fff',
+              fontSize: 13, fontWeight: 600, cursor: cards.length === 0 ? 'not-allowed' : 'pointer',
+              transition: 'all 0.15s', letterSpacing: '-0.01em',
+            }}
+          >
+            {saving ? 'Saving…' : 'Save list'}
+          </button>
+        </div>
+      </div>
+
+      <SearchModal open={showModal} onClose={() => setShowModal(false)} onAdd={handleAdd} />
     </div>
   );
 }
