@@ -7,23 +7,29 @@ import { getToken, getSession, clearToken, isTokenExpired, type Session } from '
 type ListType = 'wishlist' | 'tradelist';
 
 interface CardEntry {
-  id: string;             // local uuid for optimistic UI
+  id: string;
   tcgplayer_id: string;
   tcgplayer_name: string;
   card_number: string;
   quantity: number | null;
-  note: string;
 }
 
 const EMPTY: Record<ListType, CardEntry[]> = { wishlist: [], tradelist: [] };
 
+function authHeader() {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export default function MainPage() {
-  const [session, setSession]       = useState<Session | null>(null);
-  const [checking, setChecking]     = useState(true);
-  const [activeTab, setActiveTab]   = useState<ListType>('wishlist');
-  const [lists, setLists]           = useState<Record<ListType, CardEntry[]>>(EMPTY);
-  const [showModal, setShowModal]   = useState(false);
-  const [saving, setSaving]         = useState(false);
+  const [session, setSession]     = useState<Session | null>(null);
+  const [checking, setChecking]   = useState(true);
+  const [activeTab, setActiveTab] = useState<ListType>('wishlist');
+  const [lists, setLists]         = useState<Record<ListType, CardEntry[]>>(EMPTY);
+  const [showModal, setShowModal] = useState(false);
+  const [saving, setSaving]       = useState(false);
+  const [saveMsg, setSaveMsg]     = useState<string | null>(null);
+  const [loading, setLoading]     = useState<Record<ListType, boolean>>({ wishlist: false, tradelist: false });
 
   /* ── auth guard ── */
   useEffect(() => {
@@ -35,6 +41,34 @@ export default function MainPage() {
     setChecking(false);
   }, []);
 
+  /* ── load list from DB when tab changes ── */
+  useEffect(() => {
+    if (checking) return;
+    if (lists[activeTab].length > 0) return; // already loaded
+
+    setLoading(prev => ({ ...prev, [activeTab]: true }));
+
+    fetch(`/api/cards?list_type=${activeTab}`, {
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+    })
+      .then(r => r.json())
+      .then(({ cards, error }) => {
+        if (error) { console.error('Load error:', error); return; }
+        setLists(prev => ({
+          ...prev,
+          [activeTab]: (cards as any[]).map(c => ({
+            id: c.id,
+            tcgplayer_id: String(c.tcgplayer_id),
+            tcgplayer_name: c.tcgplayer_name ?? '',
+            card_number: c.card_number ?? '',
+            quantity: c.quantity ?? null,
+          })),
+        }));
+      })
+      .catch(err => console.error('Fetch failed:', err))
+      .finally(() => setLoading(prev => ({ ...prev, [activeTab]: false })));
+  }, [activeTab, checking]);
+
   /* ── add cards from modal ── */
   const handleAdd = useCallback((val: any) => {
     const incoming: any[] = Array.isArray(val) ? val : [val];
@@ -42,16 +76,15 @@ export default function MainPage() {
       const existing = prev[activeTab];
       const next = [...existing];
       for (const item of incoming) {
-        const tcgplayer_id = String(item.raw?.tcgplayer_id ?? item.tcgplayer_id ?? item.id ?? '');
-        if (!tcgplayer_id) continue;
-        if (next.some(c => c.tcgplayer_id === tcgplayer_id)) continue; // no dupes
+        const tcgplayer_id = String(item.raw?.tcgplayer_id ?? item.tcgplayer_id ?? '');
+        if (!tcgplayer_id || tcgplayer_id === 'undefined') continue;
+        if (next.some(c => c.tcgplayer_id === tcgplayer_id)) continue;
         next.push({
           id: crypto.randomUUID(),
           tcgplayer_id,
-          tcgplayer_name: item.tcgplayer_name ?? item.combinedName ?? '',
-          card_number: item.card_number ?? '',
+          tcgplayer_name: item.tcgplayer_name ?? '',
+          card_number: item.card_number ?? item.raw?.id ?? '',
           quantity: null,
-          note: '',
         });
       }
       return { ...prev, [activeTab]: next };
@@ -73,19 +106,46 @@ export default function MainPage() {
     }));
   }, []);
 
-  /* ── save to DB (stub — wire to /api/cards later) ── */
+  /* ── save list to DB ── */
   const handleSave = useCallback(async () => {
     setSaving(true);
-    // TODO: POST lists[activeTab] to /api/cards with session.sub
-    await new Promise(r => setTimeout(r, 800)); // stub
-    setSaving(false);
-  }, [activeTab, lists, session]);
+    setSaveMsg(null);
+
+    try {
+      const res = await fetch('/api/cards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader() },
+        body: JSON.stringify({
+          list_type: activeTab,
+          cards: lists[activeTab].map(c => ({
+            tcgplayer_id:   c.tcgplayer_id,
+            tcgplayer_name: c.tcgplayer_name,
+            card_number:    c.card_number,
+            quantity:       c.quantity,
+          })),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data.error) throw new Error(data.error ?? 'Save failed');
+
+      setSaveMsg(`Saved ${data.saved} card${data.saved !== 1 ? 's' : ''}`);
+      setTimeout(() => setSaveMsg(null), 2500);
+    } catch (err: any) {
+      console.error('Save error:', err);
+      setSaveMsg('Save failed — please try again');
+    } finally {
+      setSaving(false);
+    }
+  }, [activeTab, lists]);
 
   const handleLogout = useCallback(() => { clearToken(); window.location.replace('/'); }, []);
 
   if (checking || !session) return null;
 
   const cards = lists[activeTab];
+  const isLoading = loading[activeTab];
 
   return (
     <div style={{ minHeight: '100vh', background: '#0c0c0e', fontFamily: "'DM Sans', 'Segoe UI', sans-serif", color: '#e8e6e0' }}>
@@ -108,7 +168,6 @@ export default function MainPage() {
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 24px' }}>
 
-        {/* ── page title ── */}
         <div style={{ marginBottom: 32 }}>
           <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.03em', margin: 0, color: '#e8e6e0' }}>My Lists</h1>
           <p style={{ fontSize: 14, color: '#555', marginTop: 6 }}>Track cards you want and cards you're trading away.</p>
@@ -121,13 +180,7 @@ export default function MainPage() {
               key={tab}
               onClick={() => setActiveTab(tab)}
               style={{
-                padding: '7px 20px',
-                borderRadius: 7,
-                border: 'none',
-                fontSize: 13,
-                fontWeight: 500,
-                cursor: 'pointer',
-                transition: 'all 0.15s',
+                padding: '7px 20px', borderRadius: 7, border: 'none', fontSize: 13, fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s',
                 background: activeTab === tab ? '#1e1e28' : 'transparent',
                 color: activeTab === tab ? '#e8e6e0' : '#555',
                 boxShadow: activeTab === tab ? '0 1px 3px rgba(0,0,0,0.4)' : 'none',
@@ -145,16 +198,15 @@ export default function MainPage() {
 
         {/* ── card table ── */}
         <div style={{ background: '#111115', border: '1px solid #1e1e24', borderRadius: 12, overflow: 'hidden', marginBottom: 20 }}>
-
-          {/* table header */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px 90px 36px', gap: 8, padding: '10px 16px', borderBottom: '1px solid #1e1e24', background: '#0e0e12' }}>
             {['Card', 'Number', 'Qty', ''].map((h, i) => (
               <span key={i} style={{ fontSize: 10, fontWeight: 600, color: '#444', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{h}</span>
             ))}
           </div>
 
-          {/* rows */}
-          {cards.length === 0 ? (
+          {isLoading ? (
+            <div style={{ padding: '40px 16px', textAlign: 'center', color: '#333', fontSize: 13 }}>Loading…</div>
+          ) : cards.length === 0 ? (
             <div style={{ padding: '48px 16px', textAlign: 'center', color: '#333', fontSize: 14 }}>
               {activeTab === 'wishlist' ? 'No cards on your wishlist yet.' : 'No cards on your trade list yet.'}<br />
               <span style={{ fontSize: 12, color: '#2a2a32' }}>Use the + button below to add cards.</span>
@@ -163,62 +215,30 @@ export default function MainPage() {
             cards.map((card, i) => (
               <div
                 key={card.id}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 110px 90px 36px',
-                  gap: 8,
-                  alignItems: 'center',
-                  padding: '10px 16px',
-                  borderBottom: i < cards.length - 1 ? '1px solid #18181e' : 'none',
-                  transition: 'background 0.1s',
-                }}
+                style={{ display: 'grid', gridTemplateColumns: '1fr 110px 90px 36px', gap: 8, alignItems: 'center', padding: '10px 16px', borderBottom: i < cards.length - 1 ? '1px solid #18181e' : 'none', transition: 'background 0.1s' }}
                 onMouseEnter={e => (e.currentTarget.style.background = '#141418')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
               >
-                {/* name + id */}
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 500, color: '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {card.tcgplayer_name || '—'}
                   </div>
-                  <div style={{ fontSize: 11, color: '#444', fontFamily: 'monospace', marginTop: 1 }}>
-                    tcg:{card.tcgplayer_id}
-                  </div>
+                  <div style={{ fontSize: 11, color: '#444', fontFamily: 'monospace', marginTop: 1 }}>tcg:{card.tcgplayer_id}</div>
                 </div>
-
-                {/* card number */}
                 <div style={{ fontSize: 12, color: '#555', fontFamily: 'monospace' }}>{card.card_number || '—'}</div>
-
-                {/* qty */}
                 <input
-                  type="number"
-                  min={1}
+                  type="number" min={1}
                   value={card.quantity ?? ''}
                   onChange={e => updateQty(activeTab, card.id, e.target.value)}
                   placeholder="—"
-                  title="Quantity (optional)"
-                  style={{
-                    width: '100%',
-                    padding: '4px 8px',
-                    background: '#18181e',
-                    border: '1px solid #2a2a32',
-                    borderRadius: 6,
-                    color: '#d4d2cc',
-                    fontSize: 13,
-                    textAlign: 'center',
-                    outline: 'none',
-                  }}
+                  style={{ width: '100%', padding: '4px 8px', background: '#18181e', border: '1px solid #2a2a32', borderRadius: 6, color: '#d4d2cc', fontSize: 13, textAlign: 'center', outline: 'none' }}
                 />
-
-                {/* remove */}
                 <button
                   onClick={() => removeCard(activeTab, card.id)}
-                  title="Remove"
                   style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid #2a2a32', background: 'transparent', color: '#444', cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#c0392b'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#c0392b'; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#444'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#2a2a32'; }}
-                >
-                  ×
-                </button>
+                >×</button>
               </div>
             ))
           )}
@@ -228,32 +248,27 @@ export default function MainPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <button
             onClick={() => setShowModal(true)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              padding: '9px 18px', borderRadius: 8,
-              border: '1px solid #2a2a32', background: '#141418',
-              color: '#d4d2cc', fontSize: 13, fontWeight: 500, cursor: 'pointer',
-              transition: 'all 0.15s',
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#3a3a48'; (e.currentTarget as HTMLButtonElement).style.background = '#1a1a22'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#2a2a32'; (e.currentTarget as HTMLButtonElement).style.background = '#141418'; }}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 18px', borderRadius: 8, border: '1px solid #2a2a32', background: '#141418', color: '#d4d2cc', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#3a3a48'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#2a2a32'; }}
           >
             <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> Add cards
           </button>
 
-          <button
-            onClick={handleSave}
-            disabled={saving || cards.length === 0}
-            style={{
-              padding: '9px 24px', borderRadius: 8, border: 'none',
-              background: saving || cards.length === 0 ? '#1e1e28' : '#4f46e5',
-              color: saving || cards.length === 0 ? '#444' : '#fff',
-              fontSize: 13, fontWeight: 600, cursor: cards.length === 0 ? 'not-allowed' : 'pointer',
-              transition: 'all 0.15s', letterSpacing: '-0.01em',
-            }}
-          >
-            {saving ? 'Saving…' : 'Save list'}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {saveMsg && (
+              <span style={{ fontSize: 12, color: saveMsg.includes('failed') ? '#c0392b' : '#4ade80' }}>
+                {saveMsg}
+              </span>
+            )}
+            <button
+              onClick={handleSave}
+              disabled={saving || cards.length === 0}
+              style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: saving || cards.length === 0 ? '#1e1e28' : '#4f46e5', color: saving || cards.length === 0 ? '#444' : '#fff', fontSize: 13, fontWeight: 600, cursor: cards.length === 0 ? 'not-allowed' : 'pointer', transition: 'all 0.15s' }}
+            >
+              {saving ? 'Saving…' : 'Save list'}
+            </button>
+          </div>
         </div>
       </div>
 
