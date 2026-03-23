@@ -9,6 +9,11 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false); // controls whether to show the button
+  const [authMode, setAuthMode] = useState<'facebook' | 'email'>('facebook');
+  const [isSignup, setIsSignup] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -61,12 +66,49 @@ export default function Home() {
     setReady(true);
   }, []);
 
-  const handleFacebookLogin = () => {
-    const appId = process.env.NEXT_PUBLIC_FB_APP_ID!;
-    const redirectUri = encodeURIComponent(window.location.origin + '/');
-    const scope = encodeURIComponent('public_profile');
-    const url = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
-    window.location.href = url;
+  // const handleFacebookLogin = () => {
+  //   const appId = process.env.NEXT_PUBLIC_FB_APP_ID!;
+  //   const redirectUri = encodeURIComponent(window.location.origin + '/');
+  //   const scope = encodeURIComponent('public_profile');
+  //   const url = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
+  //   window.location.href = url;
+  // };
+
+  const handleEmailAuth = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    try {
+      const payload = {
+        mode: isSignup ? 'signup' : 'login',
+        email,
+        password,
+        name: isSignup ? name : undefined,
+      };
+
+      const res = await fetch('/api/auth/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        throw new Error(data.error ?? 'Authentication failed');
+      }
+
+      if (!data.token) {
+        throw new Error('No token returned from server');
+      }
+
+      saveToken(data.token);
+      setTimeout(() => window.location.replace('/main'), 100);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Login/signup failed';
+      setError(message);
+      setLoading(false);
+    }
   };
 
   return (
@@ -89,39 +131,90 @@ export default function Home() {
             <div className="px-6 py-3 text-sm text-gray-500">Signing in…</div>
           )}
 
-          {ready && !loading && !error && (
-            <button
-              onClick={handleFacebookLogin}
-              onMouseEnter={() => setIsHovered(true)}
-              onMouseLeave={() => setIsHovered(false)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '13px 18px',
-                background: isHovered ? '#1a77f2' : '#1877F2',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '15px',
-                fontWeight: '600',
-                fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif',
-                cursor: 'pointer',
-                letterSpacing: '0.01em',
-                boxShadow: isHovered
-                  ? '0 4px 16px rgba(24,119,242,0.45)'
-                  : '0 2px 8px rgba(24,119,242,0.25)',
-                transform: isHovered ? 'translateY(-1px)' : 'translateY(0)',
-                transition: 'all 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
-                minWidth: '220px',
-                justifyContent: 'center',
-              }}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="white" style={{ flexShrink: 0 }}>
-                <path d="M24 12.073C24 5.406 18.627 0 12 0S0 5.406 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.886v2.267h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z" />
-              </svg>
-              Continue with Facebook
-            </button>
+          {ready && !loading && (
+            <div className="flex flex-col gap-4 w-full max-w-sm">
+              <div className="flex gap-2 justify-center">
+                <button onClick={() => setAuthMode('facebook')} className={`px-3 py-2 rounded ${authMode === 'facebook' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}>
+                  Facebook
+                </button>
+                <button onClick={() => setAuthMode('email')} className={`px-3 py-2 rounded ${authMode === 'email' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}>
+                  Email
+                </button>
+              </div>
+
+              {authMode === 'facebook' ? (
+                <button
+                  onClick={handleFacebookLogin}
+                  onMouseEnter={() => setIsHovered(true)}
+                  onMouseLeave={() => setIsHovered(false)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '13px 18px',
+                    background: isHovered ? '#1a77f2' : '#1877F2',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '15px',
+                    fontWeight: '600',
+                    fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif',
+                    cursor: 'pointer',
+                    letterSpacing: '0.01em',
+                    boxShadow: isHovered
+                      ? '0 4px 16px rgba(24,119,242,0.45)'
+                      : '0 2px 8px rgba(24,119,242,0.25)',
+                    transform: isHovered ? 'translateY(-1px)' : 'translateY(0)',
+                    transition: 'all 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
+                    minWidth: '220px',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="white" style={{ flexShrink: 0 }}>
+                    <path d="M24 12.073C24 5.406 18.627 0 12 0S0 5.406 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.886v2.267h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z" />
+                  </svg>
+                  Continue with Facebook
+                </button>
+              ) : (
+                <form onSubmit={handleEmailAuth} className="flex flex-col gap-3">
+                  {isSignup && (
+                    <input
+                      type="text"
+                      placeholder="Name (optional)"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="rounded border border-gray-300 px-3 py-2"
+                    />
+                  )}
+                  <input
+                    type="email"
+                    required
+                    placeholder="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="rounded border border-gray-300 px-3 py-2"
+                  />
+                  <input
+                    type="password"
+                    required
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="rounded border border-gray-300 px-3 py-2"
+                  />
+                  <button type="submit" className="rounded bg-green-600 px-3 py-2 text-white">
+                    {isSignup ? 'Sign up' : 'Log in'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsSignup((prev) => !prev)}
+                    className="text-xs text-gray-500 underline"
+                  >
+                    Switch to {isSignup ? 'Log in' : 'Sign up'}
+                  </button>
+                </form>
+              )}
+            </div>
           )}
 
           {error && (
