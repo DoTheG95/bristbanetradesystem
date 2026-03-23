@@ -16,7 +16,7 @@ interface CardEntry {
 
 const EMPTY: Record<ListType, CardEntry[]> = { wishlist: [], tradelist: [] };
 
-function authHeader() {
+function authHeader(): Record<string, string> {
   const token = getToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
@@ -44,7 +44,7 @@ export default function MainPage() {
   /* ── load list from DB when tab changes ── */
   useEffect(() => {
     if (checking) return;
-    if (lists[activeTab].length > 0) return; // already loaded
+    if (lists[activeTab].length > 0) return;
 
     setLoading(prev => ({ ...prev, [activeTab]: true }));
 
