@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { saveToken, getToken, isTokenExpired } from '@/lib/auth';
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 export default function Home() {
   const [isHovered, setIsHovered] = useState(false);
