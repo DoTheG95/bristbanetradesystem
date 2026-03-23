@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 type Props = {
   open: boolean;
@@ -14,6 +14,14 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
   const [loadingResults, setLoadingResults] = useState(false);
   const [selectedCard, setSelectedCard] = useState<any | null>(null);
   const [selectedItems, setSelectedItems] = useState<any[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // ── focus on open ──
+  useEffect(() => {
+    if (open) setTimeout(() => inputRef.current?.focus(), 50);
+    else { setModalText(''); setResults([]); setSelectedCard(null); setSelectedItems([]); }
+  }, [open]);
+
   const removeSelectedItem = (id: any) => {
     setSelectedItems((prev) => prev.filter((p) => p.id !== id));
     setModalText('');
@@ -35,6 +43,7 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
     setSelectedItems([]);
   }, [modalText, selectedCard, onAdd, selectedItems]);
 
+  // ── search logic — unchanged from original ──
   useEffect(() => {
     if (!open) return;
 
@@ -70,16 +79,13 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
       fetch(url.toString(), { signal: controller.signal })
         .then((r) => r.json())
         .then((data) => {
-          if (!Array.isArray(data)) {
-            setResults([]);
-            return;
-          }
+          if (!Array.isArray(data)) { setResults([]); return; }
           const mapped = data
             .map((c: any) => {
-              const cardNumber = c.card_number ?? c.cardNumber ?? c.id ?? '';
+              const cardNumber = c.id ?? c.card_number ?? c.cardNumber ?? '';
               const tcgName = c.tcgplayer_name ?? '';
               return {
-                id: c.id,
+                id: c.tcgplayer_id ? String(c.tcgplayer_id) : String(c.id ?? ''),
                 tcgplayer_name: tcgName,
                 tcgplayer_id: c.tcgplayer_id,
                 card_number: cardNumber,
@@ -87,7 +93,7 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
                 raw: c,
               };
             })
-            .filter(Boolean)
+            .filter(Boolean);
           setResults(mapped);
         })
         .catch((err) => {
@@ -97,100 +103,147 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
         .finally(() => setLoadingResults(false));
     }, 300);
 
-    return () => {
-      clearTimeout(handle);
-      controller.abort();
-    };
+    return () => { clearTimeout(handle); controller.abort(); };
   }, [modalText, open]);
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="w-full max-w-md bg-white rounded-lg p-6 shadow-lg" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-lg text-black font-medium mb-3">Add Search</h2>
-        <div className="relative">
+    <div
+      onClick={onClose}
+      style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.7)' }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ width: '100%', maxWidth: 480, background: '#111115', border: '1px solid #2a2a32', borderRadius: 14, overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.6)', fontFamily: "'DM Sans','Segoe UI',sans-serif" }}
+      >
+        {/* ── header ── */}
+        <div style={{ padding: '16px 20px 14px', borderBottom: '1px solid #1e1e24' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: '#e8e6e0' }}>Add cards</span>
+            <button onClick={onClose} style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid #2a2a32', background: 'transparent', color: '#555', cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+          </div>
+
+          {/* selected chips */}
           {selectedItems.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-2">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
               {selectedItems.map((it) => (
                 <div
                   key={it.id || it.card_number || it.tcgplayer_id}
-                  className="flex items-center gap-2 px-2 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px 3px 10px', background: '#1e1e32', border: '1px solid #3a3a52', borderRadius: 99, fontSize: 12, color: '#a0a0d0' }}
                 >
-                  <span className="select-none">{it.combinedName || it.tcgplayer_name || it.id}</span>
+                  <span style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {it.combinedName || it.tcgplayer_name || it.id}
+                  </span>
                   <button
                     type="button"
-                    aria-label={`Remove ${it.combinedName || it.tcgplayer_name || it.id}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeSelectedItem(it.id);
-                    }}
-                    className="flex items-center justify-center w-5 h-5 rounded-full hover:bg-indigo-200 text-xs"
-                  >
-                    ×
-                  </button>
+                    onClick={(e) => { e.stopPropagation(); removeSelectedItem(it.id); }}
+                    style={{ width: 16, height: 16, borderRadius: '50%', border: 'none', background: '#2e2e42', color: '#888', cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                  >×</button>
                 </div>
               ))}
             </div>
           )}
-          <input
-            value={modalText}
-            onChange={(e) => {
-              setModalText(e.target.value);
-              setSelectedCard(null);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleAdd();
-            }}
-            aria-label="Add search input"
-            placeholder="Type to search..."
-            className="w-full text-black px-3 py-2 border border-gray-300 rounded mb-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-          />
 
-          <div className="absolute left-0 right-0 mt-1 z-40">
-            <div className="max-h-56 overflow-auto bg-white border border-gray-200 rounded shadow">
-              {loadingResults && <div className="px-3 py-2 text-sm text-gray-500">Searching…</div>}
-              {!loadingResults && results.length === 0 && <div className="px-3 py-2 text-sm text-gray-500">No results</div>}
-              {results.map((r) => (
+          {/* search input */}
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <svg style={{ position: 'absolute', left: 10, width: 14, height: 14, color: '#444', flexShrink: 0, pointerEvents: 'none' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input
+              ref={inputRef}
+              value={modalText}
+              onChange={(e) => { setModalText(e.target.value); setSelectedCard(null); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
+              aria-label="Add search input"
+              placeholder="Type to search..."
+              style={{ width: '100%', padding: '9px 36px 9px 32px', background: '#18181e', border: '1px solid #2a2a32', borderRadius: 8, color: '#e8e6e0', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
+            />
+            {loadingResults && (
+              <div style={{ position: 'absolute', right: 10, width: 14, height: 14, border: '2px solid #2a2a32', borderTopColor: '#4f46e5', borderRadius: '50%', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />
+            )}
+          </div>
+        </div>
+
+        {/* ── results ── */}
+        {modalText.trim().length > 0 && (
+          <div style={{ maxHeight: 260, overflowY: 'auto', borderBottom: '1px solid #1e1e24' }}>
+            {!loadingResults && results.length === 0 && (
+              <div style={{ padding: '20px', fontSize: 13, color: '#444', textAlign: 'center' }}>No results</div>
+            )}
+            {results.map((r) => {
+              const alreadySelected = selectedItems.some((p) => p.id === r.id);
+              return (
                 <button
                   key={r.tcgplayer_id || r.id || r.tcgplayer_name}
                   onClick={() => {
-                    // add to selected items as a removable chip
+                    if (alreadySelected) return;
                     setSelectedItems((prev) => {
                       const exists = prev.some((p) => p.id === r.id);
                       if (exists) return prev;
                       return [...prev, { id: r.id, combinedName: r.combinedName, tcgplayer_name: r.tcgplayer_name, card_number: r.card_number, raw: r.raw }];
                     });
-                    // clear input so user can search again
                     setModalText('');
                     setResults([]);
                     setSelectedCard(null);
                   }}
-                  className="w-full text-left px-3 py-2 hover:bg-indigo-50"
+                  style={{ width: '100%', textAlign: 'left', padding: '10px 20px', background: alreadySelected ? '#141420' : 'transparent', border: 'none', borderBottom: '1px solid #18181e', cursor: alreadySelected ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}
+                  onMouseEnter={e => { if (!alreadySelected) (e.currentTarget as HTMLButtonElement).style.background = '#1a1a22'; }}
+                  onMouseLeave={e => { if (!alreadySelected) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
                 >
-                  <div className="text-sm font-medium text-gray-900">{r.combinedName || r.tcgplayer_name || r.id}</div>
-                  <div className="text-xs text-gray-500">card_number: {r.card_number} · tcgplayer_id: {r.tcgplayer_id}</div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: alreadySelected ? '#555' : '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {r.tcgplayer_name || r.combinedName || r.id}
+                      {r.card_number && (
+                        <span style={{ marginLeft: 7, fontSize: 11, fontFamily: 'monospace', fontWeight: 400, color: alreadySelected ? '#444' : '#666' }}>
+                          {r.card_number}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#444', fontFamily: 'monospace', marginTop: 2 }}>
+                      tcg:{r.tcgplayer_id}
+                    </div>
+                  </div>
+                  {alreadySelected
+                    ? <span style={{ fontSize: 11, color: '#4f46e5', flexShrink: 0 }}>added</span>
+                    : <span style={{ fontSize: 18, color: '#333', flexShrink: 0 }}>+</span>
+                  }
                 </button>
-              ))}
-            </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* empty state */}
+        {modalText.trim().length === 0 && selectedItems.length === 0 && (
+          <div style={{ padding: '28px 20px', textAlign: 'center', color: '#333', fontSize: 13 }}>
+            Start typing to search cards
+          </div>
+        )}
+
+        {/* ── footer ── */}
+        <div style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 12, color: '#444' }}>
+            {selectedItems.length > 0 ? `${selectedItems.length} card${selectedItems.length > 1 ? 's' : ''} selected` : 'No cards selected'}
+          </span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => { setModalText(''); setResults([]); setSelectedCard(null); onClose(); }}
+              style={{ padding: '7px 16px', borderRadius: 7, border: '1px solid #2a2a32', background: 'transparent', color: '#888', fontSize: 12, cursor: 'pointer' }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleAdd}
+              disabled={selectedItems.length === 0}
+              style={{ padding: '7px 20px', borderRadius: 7, border: 'none', background: selectedItems.length === 0 ? '#1e1e28' : '#4f46e5', color: selectedItems.length === 0 ? '#444' : '#fff', fontSize: 12, fontWeight: 600, cursor: selectedItems.length === 0 ? 'not-allowed' : 'pointer' }}
+            >
+              Add{selectedItems.length > 0 ? ` ${selectedItems.length} card${selectedItems.length > 1 ? 's' : ''}` : ''}
+            </button>
           </div>
         </div>
-
-        <div className="flex justify-end gap-3 mt-4">
-          <button onClick={handleAdd} className="px-3 py-1 rounded bg-indigo-500 text-white hover:bg-indigo-700">Add</button>
-          <button
-            onClick={() => {
-              setModalText('');
-              setResults([]);
-              setSelectedCard(null);
-              onClose();
-            }}
-            className="px-3 py-1 rounded bg-red-500 text-white hover:bg-red-700"
-          >
-            Cancel
-          </button>
-        </div>
       </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
