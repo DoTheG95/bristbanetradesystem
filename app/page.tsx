@@ -8,12 +8,7 @@ export default function Home() {
   const [isHovered, setIsHovered] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [ready, setReady] = useState(false); // controls whether to show the button
-  const [authMode, setAuthMode] = useState<'facebook' | 'email'>('facebook');
-  const [isSignup, setIsSignup] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -66,49 +61,12 @@ export default function Home() {
     setReady(true);
   }, []);
 
-  // const handleFacebookLogin = () => {
-  //   const appId = process.env.NEXT_PUBLIC_FB_APP_ID!;
-  //   const redirectUri = encodeURIComponent(window.location.origin + '/');
-  //   const scope = encodeURIComponent('public_profile');
-  //   const url = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
-  //   window.location.href = url;
-  // };
-
-  const handleEmailAuth = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setError(null);
-    setLoading(true);
-
-    try {
-      const payload = {
-        mode: isSignup ? 'signup' : 'login',
-        email,
-        password,
-        name: isSignup ? name : undefined,
-      };
-
-      const res = await fetch('/api/auth/email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-
-      if (!res.ok || data.error) {
-        throw new Error(data.error ?? 'Authentication failed');
-      }
-
-      if (!data.token) {
-        throw new Error('No token returned from server');
-      }
-
-      saveToken(data.token);
-      setTimeout(() => window.location.replace('/main'), 100);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Login/signup failed';
-      setError(message);
-      setLoading(false);
-    }
+  const handleFacebookLogin = () => {
+    const appId = process.env.NEXT_PUBLIC_FB_APP_ID!;
+    const redirectUri = encodeURIComponent(window.location.origin + '/');
+    const scope = encodeURIComponent('public_profile');
+    const url = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
+    window.location.href = url;
   };
 
   return (
@@ -130,19 +88,7 @@ export default function Home() {
           {loading && (
             <div className="px-6 py-3 text-sm text-gray-500">Signing in…</div>
           )}
-
-          {ready && !loading && (
             <div className="flex flex-col gap-4 w-full max-w-sm">
-              <div className="flex gap-2 justify-center">
-                <button onClick={() => setAuthMode('facebook')} className={`px-3 py-2 rounded ${authMode === 'facebook' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}>
-                  Facebook
-                </button>
-                <button onClick={() => setAuthMode('email')} className={`px-3 py-2 rounded ${authMode === 'email' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}>
-                  Email
-                </button>
-              </div>
-
-              {authMode === 'facebook' ? (
                 <button
                   onClick={handleFacebookLogin}
                   onMouseEnter={() => setIsHovered(true)}
@@ -175,47 +121,7 @@ export default function Home() {
                   </svg>
                   Continue with Facebook
                 </button>
-              ) : (
-                <form onSubmit={handleEmailAuth} className="flex flex-col gap-3">
-                  {isSignup && (
-                    <input
-                      type="text"
-                      placeholder="Name (optional)"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="rounded border border-gray-300 px-3 py-2"
-                    />
-                  )}
-                  <input
-                    type="email"
-                    required
-                    placeholder="Email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="rounded border border-gray-300 px-3 py-2"
-                  />
-                  <input
-                    type="password"
-                    required
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="rounded border border-gray-300 px-3 py-2"
-                  />
-                  <button type="submit" className="rounded bg-green-600 px-3 py-2 text-white">
-                    {isSignup ? 'Sign up' : 'Log in'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsSignup((prev) => !prev)}
-                    className="text-xs text-gray-500 underline"
-                  >
-                    Switch to {isSignup ? 'Log in' : 'Sign up'}
-                  </button>
-                </form>
-              )}
             </div>
-          )}
 
           {error && (
             <button
