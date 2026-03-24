@@ -1,8 +1,10 @@
 export interface Session {
-  sub: string;          // your internal user UUID
-  facebook_id: string;
-  name: string | null;
-  avatar_url: string | null;
+  sub: string; // your internal user UUID
+  facebook_id?: string | null;
+  email?: string | null;
+  name?: string | null;
+  avatar_url?: string | null;
+  role?: string | null;
 }
 
 const TOKEN_KEY = 'bts_token';
@@ -39,7 +41,7 @@ export function decodeSession(token: string): Session | null {
   try {
     const payload = token.split('.')[1];
     const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
-    if (!decoded.sub || !decoded.facebook_id) return null;
+    if (!decoded.sub) return null;
     return decoded as Session;
   } catch {
     return null;
