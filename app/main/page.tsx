@@ -62,34 +62,40 @@ export default function MainPage() {
 
     return () => subscription.unsubscribe();
   }, []);
+  
+    useEffect(() => {
+      if (checking || !userId) return;
+      if (lists[activeTab].length > 0) return;
 
-  /* ── load list from DB when tab changes ── */
-  useEffect(() => {
-    if (checking || !userId) return;
-    if (lists[activeTab].length > 0) return;
+      const loadCards = async () => {
+        setLoading(prev => ({ ...prev, [activeTab]: true }));
 
-    setLoading(prev => ({ ...prev, [activeTab]: true }));
+        const { data, error } = await supabase
+          .from('user_cards')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('list_type', activeTab);
 
-    supabase
-      .from('user_cards')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('list_type', activeTab)
-      .then(({ data, error }) => {
-        if (error) { console.error('Load error:', error); return; }
-        setLists(prev => ({
-          ...prev,
-          [activeTab]: (data ?? []).map(c => ({
-            id: c.id,
-            tcgplayer_id: String(c.tcgplayer_id),
-            tcgplayer_name: c.tcgplayer_name ?? '',
-            card_number: c.card_number ?? '',
-            quantity: c.quantity ?? null,
-          })),
-        }));
-      })
-      .finally(() => setLoading(prev => ({ ...prev, [activeTab]: false })));
-  }, [activeTab, checking, userId]);
+        if (error) {
+          console.error('Load error:', error);
+        } else {
+          setLists(prev => ({
+            ...prev,
+            [activeTab]: (data ?? []).map(c => ({
+              id: c.id,
+              tcgplayer_id: String(c.tcgplayer_id),
+              tcgplayer_name: c.tcgplayer_name ?? '',
+              card_number: c.card_number ?? '',
+              quantity: c.quantity ?? null,
+            })),
+          }));
+        }
+
+        setLoading(prev => ({ ...prev, [activeTab]: false }));
+      };
+
+      loadCards();
+    }, [activeTab, checking, userId]);
 
   /* ── add cards from modal ── */
   const handleAdd = useCallback((val: any) => {
