@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import SearchModal from './SearchModal';
-import { getToken, getSession, clearToken, isTokenExpired, type Session } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 
 type ListType = 'wishlist' | 'tradelist';
 
@@ -16,47 +16,70 @@ interface CardEntry {
 
 const EMPTY: Record<ListType, CardEntry[]> = { wishlist: [], tradelist: [] };
 
-function authHeader(): Record<string, string> {
-  const token = getToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
 export default function MainPage() {
-  const [session, setSession]     = useState<Session | null>(null);
-  const [checking, setChecking]   = useState(true);
-  const [activeTab, setActiveTab] = useState<ListType>('wishlist');
-  const [lists, setLists]         = useState<Record<ListType, CardEntry[]>>(EMPTY);
-  const [showModal, setShowModal] = useState(false);
-  const [saving, setSaving]       = useState(false);
-  const [saveMsg, setSaveMsg]     = useState<string | null>(null);
-  const [loading, setLoading]     = useState<Record<ListType, boolean>>({ wishlist: false, tradelist: false });
+  const [userId, setUserId]           = useState<string | null>(null);
+  const [userEmail, setUserEmail]     = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [checking, setChecking]       = useState(true);
+  const [activeTab, setActiveTab]     = useState<ListType>('wishlist');
+  const [lists, setLists]             = useState<Record<ListType, CardEntry[]>>(EMPTY);
+  const [showModal, setShowModal]     = useState(false);
+  const [saving, setSaving]           = useState(false);
+  const [saveMsg, setSaveMsg]         = useState<string | null>(null);
+  const [loading, setLoading]         = useState<Record<ListType, boolean>>({ wishlist: false, tradelist: false });
 
-  /* ── auth guard ── */
+  /* ── auth guard + onboarding check ── */
   useEffect(() => {
-    const token = getToken();
-    if (!token || isTokenExpired(token)) { clearToken(); window.location.replace('/'); return; }
-    const decoded = getSession();
-    if (!decoded) { clearToken(); window.location.replace('/'); return; }
-    setSession(decoded);
-    setChecking(false);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) {
+        window.location.replace('/');
+        return;
+      }
+
+      // Check if user has completed onboarding (has a display_name)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('id', session.user.id)
+        .single();
+
+      if (!profile?.display_name) {
+        window.location.replace('/onboarding');
+        return;
+      }
+
+      setUserId(session.user.id);
+      setUserEmail(session.user.email ?? null);
+      setDisplayName(profile.display_name);
+      setChecking(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        window.location.replace('/');
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   /* ── load list from DB when tab changes ── */
   useEffect(() => {
-    if (checking) return;
+    if (checking || !userId) return;
     if (lists[activeTab].length > 0) return;
 
     setLoading(prev => ({ ...prev, [activeTab]: true }));
 
-    fetch(`/api/cards?list_type=${activeTab}`, {
-      headers: { 'Content-Type': 'application/json', ...authHeader() },
-    })
-      .then(r => r.json())
-      .then(({ cards, error }) => {
+    supabase
+      .from('user_cards')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('list_type', activeTab)
+      .then(({ data, error }) => {
         if (error) { console.error('Load error:', error); return; }
         setLists(prev => ({
           ...prev,
-          [activeTab]: (cards as any[]).map(c => ({
+          [activeTab]: (data ?? []).map(c => ({
             id: c.id,
             tcgplayer_id: String(c.tcgplayer_id),
             tcgplayer_name: c.tcgplayer_name ?? '',
@@ -65,9 +88,8 @@ export default function MainPage() {
           })),
         }));
       })
-      .catch(err => console.error('Fetch failed:', err))
       .finally(() => setLoading(prev => ({ ...prev, [activeTab]: false })));
-  }, [activeTab, checking]);
+  }, [activeTab, checking, userId]);
 
   /* ── add cards from modal ── */
   const handleAdd = useCallback((val: any) => {
@@ -108,29 +130,36 @@ export default function MainPage() {
 
   /* ── save list to DB ── */
   const handleSave = useCallback(async () => {
+    if (!userId) return;
     setSaving(true);
     setSaveMsg(null);
 
     try {
-      const res = await fetch('/api/cards', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeader() },
-        body: JSON.stringify({
-          list_type: activeTab,
-          cards: lists[activeTab].map(c => ({
-            tcgplayer_id:   c.tcgplayer_id,
-            tcgplayer_name: c.tcgplayer_name,
-            card_number:    c.card_number,
-            quantity:       c.quantity,
-          })),
-        }),
-      });
+      const { error: deleteError } = await supabase
+        .from('user_cards')
+        .delete()
+        .eq('user_id', userId)
+        .eq('list_type', activeTab);
 
-      const data = await res.json();
+      if (deleteError) throw deleteError;
 
-      if (!res.ok || data.error) throw new Error(data.error ?? 'Save failed');
+      const rows = lists[activeTab].map(c => ({
+        user_id:        userId,
+        list_type:      activeTab,
+        tcgplayer_id:   c.tcgplayer_id,
+        tcgplayer_name: c.tcgplayer_name,
+        card_number:    c.card_number,
+        quantity:       c.quantity,
+      }));
 
-      setSaveMsg(`Saved ${data.saved} card${data.saved !== 1 ? 's' : ''}`);
+      if (rows.length > 0) {
+        const { error: insertError } = await supabase
+          .from('user_cards')
+          .insert(rows);
+        if (insertError) throw insertError;
+      }
+
+      setSaveMsg(`Saved ${rows.length} card${rows.length !== 1 ? 's' : ''}`);
       setTimeout(() => setSaveMsg(null), 2500);
     } catch (err: any) {
       console.error('Save error:', err);
@@ -138,11 +167,15 @@ export default function MainPage() {
     } finally {
       setSaving(false);
     }
-  }, [activeTab, lists]);
+  }, [activeTab, lists, userId]);
 
-  const handleLogout = useCallback(() => { clearToken(); window.location.replace('/'); }, []);
+  /* ── logout ── */
+  const handleLogout = useCallback(async () => {
+    await supabase.auth.signOut();
+    window.location.replace('/');
+  }, []);
 
-  if (checking || !session) return null;
+  if (checking || !userId) return null;
 
   const cards = lists[activeTab];
   const isLoading = loading[activeTab];
@@ -153,13 +186,15 @@ export default function MainPage() {
       {/* ── nav ── */}
       <nav style={{ borderBottom: '1px solid #1e1e24', background: '#0c0c0e', position: 'sticky', top: 0, zIndex: 10 }}>
         <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 24px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em', color: '#e8e6e0' }}>BTS</span>
+          <span style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em', color: '#e8e6e0' }}>Cardboard Addiction</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {session.avatar_url && (
-              <img src={session.avatar_url} alt={session.name ?? ''} style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid #2a2a32' }} />
+            {displayName && (
+              <span style={{ fontSize: 13, color: '#888' }}>{displayName}</span>
             )}
-            {session.name && <span style={{ fontSize: 13, color: '#888' }}>{session.name}</span>}
-            <button onClick={handleLogout} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid #2a2a32', background: 'transparent', color: '#888', cursor: 'pointer' }}>
+            <button
+              onClick={handleLogout}
+              style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid #2a2a32', background: 'transparent', color: '#888', cursor: 'pointer' }}
+            >
               Logout
             </button>
           </div>
