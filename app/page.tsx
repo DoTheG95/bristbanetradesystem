@@ -10,24 +10,22 @@ export default function Home() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [accessCode, setAccessCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
 
+  // Check for existing session on mount
   useEffect(() => {
-    // Step 1: Check if a session already exists on page load
-    // If yes, skip the login page entirely and go to /main
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         window.location.replace('/main');
       } else {
-        setCheckingSession(false); // No session — show the login form
+        setCheckingSession(false);
       }
     });
 
-    // Step 2: Listen for auth events AFTER the session check
-    // Only redirect on SIGNED_IN, not TOKEN_REFRESHED (which causes the loop)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
         window.location.replace('/main');
@@ -40,32 +38,26 @@ export default function Home() {
   const handleEmailLogin = async () => {
     setError(null);
     setMessage(null);
-    if (!email || !password) {
-      setError('Please enter your email and password.');
-      return;
-    }
+    if (!email || !password) { setError('Please enter your email and password.'); return; }
     setLoading(true);
     const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (signInError) setError(signInError.message);
-    // On success, onAuthStateChange fires SIGNED_IN and redirects to /main
   };
 
   const handleEmailSignup = async () => {
     setError(null);
     setMessage(null);
-    if (!email || !password || !confirmPassword) {
-      setError('Please fill in all fields.');
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
-      return;
-    }
+
+    // Validate access code first
+    const validCode = process.env.NEXT_PUBLIC_ACCESS_CODE;
+    if (!accessCode) { setError('Please enter the access code.'); return; }
+    if (accessCode.trim() !== validCode) { setError('Invalid access code.'); return; }
+
+    if (!email || !password || !confirmPassword) { setError('Please fill in all fields.'); return; }
+    if (password !== confirmPassword) { setError('Passwords do not match.'); return; }
+    if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
+
     setLoading(true);
     const { error: signUpError } = await supabase.auth.signUp({
       email,
@@ -73,6 +65,7 @@ export default function Home() {
       options: { emailRedirectTo: window.location.origin + '/main' },
     });
     setLoading(false);
+
     if (signUpError) {
       setError(signUpError.message);
     } else {
@@ -91,9 +84,9 @@ export default function Home() {
     setEmail('');
     setPassword('');
     setConfirmPassword('');
+    setAccessCode('');
   };
 
-  // Don't render anything until we know there's no active session
   if (checkingSession) return null;
 
   return (
@@ -119,6 +112,24 @@ export default function Home() {
 
           {/* Inputs */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+
+            {/* Access code — signup only */}
+            {tab === 'signup' && (
+              <div>
+                <input
+                  type="text"
+                  placeholder="Access code"
+                  value={accessCode}
+                  onChange={(e) => setAccessCode(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  style={styles.input}
+                  onFocus={(e) => (e.currentTarget.style.borderColor = 'rgba(99,102,241,0.6)')}
+                  onBlur={(e) => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)')}
+                />
+                <p style={styles.fieldHint}>Early access only — enter your invite code</p>
+              </div>
+            )}
+
             <input
               type="email"
               placeholder="Email address"
@@ -261,6 +272,11 @@ const styles: Record<string, React.CSSProperties> = {
     outline: 'none',
     transition: 'border-color 0.2s',
     boxSizing: 'border-box',
+  },
+  fieldHint: {
+    fontSize: '11px',
+    color: 'rgba(255,255,255,0.2)',
+    margin: '6px 0 0 2px',
   },
   errorText: {
     marginTop: '10px',
