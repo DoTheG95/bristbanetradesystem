@@ -93,33 +93,33 @@ export default function PostPage() {
     }
 };
 
-    const fetchPosts = async () => {
-        setLoading(true);
-        // Simple fetch: we get the 'cards' JSON column directly
-        const { data, error } = await supabase
-            .from('posts')
-            .select('*')
-            .order('created_at', { ascending: false });
-            
-        if (data) setPosts(data);
-        setLoading(false);
-    };
+const fetchPosts = async () => {
+    setLoading(true);
+    // Simple fetch: we get the 'cards' JSON column directly
+    const { data, error } = await supabase
+        .from('posts')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+    if (data) setPosts(data);
+    setLoading(false);
+  };
 
-    const handleDeletePost = async (postId: string) => {
-        if (!window.confirm("Are you sure you want to delete this post?")) return;
+  const handleDeletePost = async (postId: string) => {
+      if (!window.confirm("Are you sure you want to delete this post?")) return;
 
-        const { error } = await supabase
-            .from('posts')
-            .delete()
-            .eq('id', postId)
-            .eq('user_id', userId); // Safety check to ensure only the owner can delete
+      const { error } = await supabase
+          .from('posts')
+          .delete()
+          .eq('id', postId)
+          .eq('user_id', userId); // Safety check to ensure only the owner can delete
 
-        if (error) {
-            console.error("Delete Error:", error.message);
-        } else {
-            fetchPosts(); // Refresh the feed
-        }
-    };
+      if (error) {
+          console.error("Delete Error:", error.message);
+      } else {
+          fetchPosts(); // Refresh the feed
+      }
+  };
 
   return (
     <div style={{ minHeight: '100vh', background: '#0c0c0e', color: '#e8e6e0', fontFamily: 'sans-serif' }}>
