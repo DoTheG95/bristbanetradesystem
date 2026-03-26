@@ -19,6 +19,7 @@ export default function LocalArea() {
     const [showJoinModal, setShowJoinModal] = useState(false);
     const [loading, setLoading] = useState(true);
     const [userId, setUserId] = useState<string | null>(null);
+    const tcgplayerid = '587342';
 
     useEffect(() => {
         supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -76,7 +77,6 @@ export default function LocalArea() {
     return (
         <div style={{ minHeight: '100vh', background: '#0c0c0e', color: '#e8e6e0', fontFamily: 'sans-serif' }}>
             <Navbar />
-
             <div style={{ maxWidth: 700, margin: '40px auto', padding: '0 20px' }}>
                 <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 8 }}>Your Local Communities</h1>
                 <p style={{ color: '#666', fontSize: 14, marginBottom: 32 }}>

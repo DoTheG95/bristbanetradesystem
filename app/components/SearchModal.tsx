@@ -200,9 +200,6 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize: 11, color: '#444', fontFamily: 'monospace', marginTop: 2 }}>
-                      tcg:{r.tcgplayer_id}
-                    </div>
                   </div>
                   {alreadySelected
                     ? <span style={{ fontSize: 11, color: '#4f46e5', flexShrink: 0 }}>added</span>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import SearchModal from '../components/SearchModal';
 import { supabase } from '@/lib/supabase';
 import Navbar from '../components/Navbar';
@@ -13,6 +13,14 @@ interface CardEntry {
   tcgplayer_name: string;
   card_number: string;
   quantity: number | null;
+}
+
+interface PopoverState {
+  cardId: string;
+  src: string;
+  name: string;
+  x: number;
+  y: number;
 }
 
 const EMPTY: Record<ListType, CardEntry[]> = { wishlist: [], tradelist: [] };
@@ -28,6 +36,8 @@ export default function MainPage() {
   const [saving, setSaving]           = useState(false);
   const [saveMsg, setSaveMsg]         = useState<string | null>(null);
   const [loading, setLoading]         = useState<Record<ListType, boolean>>({ wishlist: false, tradelist: false });
+  const [popover, setPopover]         = useState<PopoverState | null>(null);
+  const popoverRef                    = useRef<HTMLDivElement>(null);
 
   /* ── auth guard + onboarding check ── */
   useEffect(() => {
@@ -95,6 +105,22 @@ export default function MainPage() {
 
       loadCards();
     }, [activeTab, checking, userId]);
+
+  /* ── popover handlers ── */
+  const handleImageMouseEnter = useCallback((e: React.MouseEvent<HTMLImageElement>, card: CardEntry) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setPopover({
+      cardId: card.id,
+      src: `https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_800x800.jpg`,
+      name: card.card_number,
+      x: rect.right + 12,
+      y: rect.top + rect.height / 2,
+    });
+  }, []);
+
+  const handleImageMouseLeave = useCallback(() => {
+    setPopover(null);
+  }, []);
 
   /* ── add cards from modal ── */
   const handleAdd = useCallback((val: any) => {
@@ -224,8 +250,8 @@ export default function MainPage() {
      
         {/* ── card table ── */}
         <div style={{ background: '#111115', border: '1px solid #1e1e24', borderRadius: 12, overflow: 'hidden', marginBottom: 20 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px 90px 36px', gap: 8, padding: '10px 16px', borderBottom: '1px solid #1e1e24', background: '#0e0e12' }}>
-            {['Card', 'Number', 'Qty', ''].map((h, i) => (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 220px 90px 36px', gap: 8, padding: '10px 16px', borderBottom: '1px solid #1e1e24', background: '#0e0e12' }}>
+            {['', 'Card', 'Qty', ''].map((h, i) => (
               <span key={i} style={{ fontSize: 10, fontWeight: 600, color: '#444', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{h}</span>
             ))}
           </div>
@@ -241,17 +267,22 @@ export default function MainPage() {
             cards.map((card, i) => (
               <div
                 key={card.id}
-                style={{ display: 'grid', gridTemplateColumns: '1fr 110px 90px 36px', gap: 8, alignItems: 'center', padding: '10px 16px', borderBottom: i < cards.length - 1 ? '1px solid #18181e' : 'none', transition: 'background 0.1s' }}
+                style={{ display: 'grid', gridTemplateColumns: '1fr 220px 90px 36px', gap: 8, alignItems: 'center', padding: '10px 16px', borderBottom: i < cards.length - 1 ? '1px solid #18181e' : 'none', transition: 'background 0.1s' }}
                 onMouseEnter={e => (e.currentTarget.style.background = '#141418')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
               >
-                <div>
+                <img
+                  src={"https://tcgplayer-cdn.tcgplayer.com/product/" + card.tcgplayer_id + "_in_200x200.jpg"}
+                  onMouseEnter={e => handleImageMouseEnter(e, card)}
+                  onMouseLeave={handleImageMouseLeave}
+                  alt={card.tcgplayer_name}
+                />
+                <div style={{ fontSize: 12, color: '#555', fontFamily: 'monospace' }}>
                   <div style={{ fontSize: 13, fontWeight: 500, color: '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {card.tcgplayer_name || '—'}
                   </div>
-                  <div style={{ fontSize: 11, color: '#444', fontFamily: 'monospace', marginTop: 1 }}>tcg:{card.tcgplayer_id}</div>
+                  {card.card_number || '—'}
                 </div>
-                <div style={{ fontSize: 12, color: '#555', fontFamily: 'monospace' }}>{card.card_number || '—'}</div>
                 <input
                   type="number" min={1}
                   value={card.quantity ?? ''}
@@ -297,7 +328,44 @@ export default function MainPage() {
           </div>
         </div>
       </div>
-
+{/* ── Card image popover ── */}
+      {popover && (
+        <div
+          ref={popoverRef}
+          style={{
+            position: 'fixed',
+            left: popover.x,
+            top: popover.y,
+            transform: 'translateY(-50%)',
+            zIndex: 9999,
+            background: '#1a1a22',
+            border: '1px solid #2a2a38',
+            borderRadius: 10,
+            padding: 10,
+            boxShadow: '0 16px 48px rgba(0,0,0,0.7)',
+            pointerEvents: 'none',
+            animation: 'popoverIn 0.12s ease',
+          }}
+        >
+          <img
+            src={popover.src}
+            alt={popover.name}
+            style={{ width: 500, height: 500, objectFit: 'contain', borderRadius: 6, display: 'block' }}          
+          />
+          {popover.name && (
+            <div style={{ marginTop: 8, fontSize: 11, color: '#888', textAlign: 'center', maxWidth: 300, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {popover.name}
+            </div>
+          )}
+        </div>
+      )}
+ 
+      <style>{`
+        @keyframes popoverIn {
+          from { opacity: 0; transform: translateY(-50%) scale(0.92); }
+          to   { opacity: 1; transform: translateY(-50%) scale(1); }
+        }
+      `}</style>
       <SearchModal open={showModal} onClose={() => setShowModal(false)} onAdd={handleAdd} />
     </div>
   );
