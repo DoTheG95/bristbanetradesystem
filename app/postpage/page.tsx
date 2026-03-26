@@ -34,50 +34,45 @@ const handleCreatePost = async () => {
     setSubmitting(true);
 
     try {
-        const cardSnapshot = selectedCards.map(c => ({
-            tcgplayer_id: String(c.tcgplayer_id),
+      const cardSnapshot = selectedCards.map(c => ({
+          tcgplayer_id: String(c.tcgplayer_id),
+          tcgplayer_name: c.tcgplayer_name,
+          card_number: c.card_number
+      }));
+
+      // 1. Insert the Post (Snapshot)
+      const { error: postError } = await supabase
+          .from('posts')
+          .insert({ 
+              user_id: userId, 
+              display_name: displayName, 
+              content, 
+              post_type: postType, // 'tradelist' or 'wishlist'
+              cards: cardSnapshot 
+          });
+          
+      if (postError) throw postError;
+
+      // 2. Sync to user_cards (Private Inventory)
+      if (selectedCards.length > 0) {
+        const userCardRows = selectedCards.map(c => ({
+            user_id: userId,
+            list_type: postType, 
+            tcgplayer_id: String(c.id),
             tcgplayer_name: c.tcgplayer_name,
-            card_number: c.card_number
+            card_number: c.card_number,
+            quantity: null,
         }));
 
-        // 1. Insert the Post (Snapshot)
-        const { error: postError } = await supabase
-            .from('posts')
-            .insert({ 
-                user_id: userId, 
-                display_name: displayName, 
-                content, 
-                post_type: postType, // 'tradelist' or 'wishlist'
-                cards: cardSnapshot 
-            });
+        const { error: syncError } = await supabase
+            .from('user_cards')
+            .insert(userCardRows); 
 
-        if (postError) throw postError;
-
-// 2. Sync to user_cards (Private Inventory)
-if (selectedCards.length > 0) {
-    const userCardRows = selectedCards.map(c => ({
-        user_id: userId,
-        list_type: postType, 
-        tcgplayer_id: String(c.tcgplayer_id),
-        tcgplayer_name: c.tcgplayer_name,
-        card_number: c.card_number,
-        quantity: 1
-    }));
-
-    // Switch from .upsert to .insert
-    // We don't want to "Update" (overwrite), we just want to "Add"
-    const { error: syncError } = await supabase
-        .from('user_cards')
-        .insert(userCardRows); 
-
-    if (syncError) {
-        // If the error code is 23505, it just means the card is already in the list.
-        // We can safely ignore this error so the post still completes.
-        if (syncError.code !== '23505') {
-            console.error("Sync Error:", syncError.message);
+        if (syncError) {
+            // If the error code is 23505, it just means the card is already in the list.
+            if (syncError.code !== '23505') console.error("Sync Error:", syncError.message);
         }
-    }
-}
+      }
 
         setContent('');
         setSelectedCards([]);
