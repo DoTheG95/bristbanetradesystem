@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import Navbar from '../components/Navbar';
 import CommunityModal from '../components/CommunityModal';
+import JoinCommunityModal from '../components/JoinCommunityModal';
 
 interface Community {
     id: number;
@@ -15,21 +16,23 @@ export default function LocalArea() {
     const [userCommunityIds, setUserCommunityIds] = useState<number[]>([]);
     const [selectedCommunity, setSelectedCommunity] = useState<string>('');
     const [showCommunityModal, setShowCommunityModal] = useState(false);
+    const [showJoinModal, setShowJoinModal] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [userId, setUserId] = useState<string | null>(null);
 
     useEffect(() => {
         supabase.auth.getSession().then(async ({ data: { session } }) => {
             if (!session) return window.location.replace('/');
+            setUserId(session.user.id);
             await fetchUserCommunityIds(session.user.id);
         });
     }, []);
 
-    // Step 1: fetch which community IDs the user belongs to
-    const fetchUserCommunityIds = async (userId: string) => {
+    const fetchUserCommunityIds = async (uid: string) => {
         const { data, error } = await supabase
-            .from('user_communities')         // join table: user_id, community_id
+            .from('user_communities')
             .select('community_id')
-            .eq('user_id', userId);
+            .eq('user_id', uid);
 
         if (error) {
             console.error('Error fetching user community IDs:', error);
@@ -47,7 +50,6 @@ export default function LocalArea() {
         }
     };
 
-    // Step 2: fetch community details using the IDs
     const fetchCommunities = async (ids: number[]) => {
         const { data, error } = await supabase
             .from('communities')
@@ -64,12 +66,11 @@ export default function LocalArea() {
         setLoading(false);
     };
 
-    const joinCommunity = () => {
-        // TODO: open a modal or flow to search & join a community by code/name
-    };
-
-    const createCommunity = () => {
-        setShowCommunityModal(true);
+    // Called by JoinCommunityModal after a successful join to refresh the list
+    const handleJoined = async () => {
+        if (!userId) return;
+        setLoading(true);
+        await fetchUserCommunityIds(userId);
     };
 
     return (
@@ -85,7 +86,7 @@ export default function LocalArea() {
                 {/* Action buttons */}
                 <div style={{ display: 'flex', gap: 12, marginBottom: 32 }}>
                     <button
-                        onClick={joinCommunity}
+                        onClick={() => setShowJoinModal(true)}
                         style={{
                             padding: '8px 20px',
                             borderRadius: 8,
@@ -100,7 +101,7 @@ export default function LocalArea() {
                         Join a Community
                     </button>
                     <button
-                        onClick={createCommunity}
+                        onClick={() => setShowCommunityModal(true)}
                         style={{
                             padding: '8px 20px',
                             borderRadius: 8,
@@ -150,9 +151,7 @@ export default function LocalArea() {
 
                     {/* Placeholder for community content */}
                     <div style={{ padding: 32, textAlign: 'center', color: '#333', fontSize: 13 }}>
-                        {!loading && communities.length > 0
-                            ? 'Community feed coming soon…'
-                            : null}
+                        {!loading && communities.length > 0 ? 'Community feed coming soon…' : null}
                     </div>
                 </div>
             </div>
@@ -160,6 +159,11 @@ export default function LocalArea() {
             <CommunityModal
                 open={showCommunityModal}
                 onClose={() => setShowCommunityModal(false)}
+            />
+            <JoinCommunityModal
+                open={showJoinModal}
+                onClose={() => setShowJoinModal(false)}
+                onJoined={handleJoined}
             />
         </div>
     );
