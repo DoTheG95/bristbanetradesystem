@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import SearchModal from './SearchModal';
+import SearchModal from '../components/SearchModal';
 import { supabase } from '@/lib/supabase';
+import Navbar from '../components/Navbar';
 
 type ListType = 'wishlist' | 'tradelist';
 
@@ -31,23 +32,21 @@ export default function MainPage() {
   /* ── auth guard + onboarding check ── */
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) {
+      if (!session) { // Not signed in, redirect to login
         window.location.replace('/');
         return;
       }
-
       // Check if user has completed onboarding (has a display_name)
       const { data: profile } = await supabase
         .from('profiles')
         .select('display_name')
         .eq('id', session.user.id)
         .single();
-
+      // If there is no display_name, it means they haven't completed onboarding, so redirect to onboarding page
       if (!profile?.display_name) {
         window.location.replace('/onboarding');
         return;
       }
-
       setUserId(session.user.id);
       setUserEmail(session.user.email ?? null);
       setDisplayName(profile.display_name);
@@ -62,7 +61,7 @@ export default function MainPage() {
 
     return () => subscription.unsubscribe();
   }, []);
-  
+
     useEffect(() => {
       if (checking || !userId) return;
       if (lists[activeTab].length > 0) return;
@@ -175,12 +174,6 @@ export default function MainPage() {
     }
   }, [activeTab, lists, userId]);
 
-  /* ── logout ── */
-  const handleLogout = useCallback(async () => {
-    await supabase.auth.signOut();
-    window.location.replace('/');
-  }, []);
-
   if (checking || !userId) return null;
 
   const cards = lists[activeTab];
@@ -189,23 +182,7 @@ export default function MainPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#0c0c0e', fontFamily: "'DM Sans', 'Segoe UI', sans-serif", color: '#e8e6e0' }}>
 
-      {/* ── nav ── */}
-      <nav style={{ borderBottom: '1px solid #1e1e24', background: '#0c0c0e', position: 'sticky', top: 0, zIndex: 10 }}>
-        <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 24px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em', color: '#e8e6e0' }}>Cardboard Addiction</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {displayName && (
-              <span style={{ fontSize: 13, color: '#888' }}>{displayName}</span>
-            )}
-            <button
-              onClick={handleLogout}
-              style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid #2a2a32', background: 'transparent', color: '#888', cursor: 'pointer' }}
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 24px' }}>
 
@@ -235,8 +212,16 @@ export default function MainPage() {
               )}
             </button>
           ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button
+            // onClick={handleMatch}
+              style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: saving || cards.length === 0 ? '#1e1e28' : '#4f46e5', color: saving || cards.length === 0 ? '#444' : '#fff', fontSize: 13, fontWeight: 600, cursor: cards.length === 0 ? 'not-allowed' : 'pointer', transition: 'all 0.15s' }}
+            >
+              {saving ? 'Matching...' : 'Match me!'}
+            </button>
+          </div>
         </div>
-
+     
         {/* ── card table ── */}
         <div style={{ background: '#111115', border: '1px solid #1e1e24', borderRadius: 12, overflow: 'hidden', marginBottom: 20 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px 90px 36px', gap: 8, padding: '10px 16px', borderBottom: '1px solid #1e1e24', background: '#0e0e12' }}>
@@ -304,8 +289,8 @@ export default function MainPage() {
             )}
             <button
               onClick={handleSave}
-              disabled={saving || cards.length === 0}
-              style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: saving || cards.length === 0 ? '#1e1e28' : '#4f46e5', color: saving || cards.length === 0 ? '#444' : '#fff', fontSize: 13, fontWeight: 600, cursor: cards.length === 0 ? 'not-allowed' : 'pointer', transition: 'all 0.15s' }}
+              disabled={saving}
+              style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#4f46e5', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}
             >
               {saving ? 'Saving…' : 'Save list'}
             </button>

@@ -2,9 +2,10 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import SearchModal from '../main/SearchModal'; // Keeping your existing modal logic
+import SearchModal from '../components/SearchModal'; // Keeping your existing modal logic
+import Navbar from '../components/Navbar';
 
-export default function CommunityPage() {
+export default function PostPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [posts, setPosts] = useState<any[]>([]);
@@ -52,22 +53,31 @@ const handleCreatePost = async () => {
 
         if (postError) throw postError;
 
-        // 2. Sync to user_cards (Private Inventory)
-        if (selectedCards.length > 0) {
-            const userCardRows = selectedCards.map(c => ({
-                user_id: userId,
-                list_type: postType, // Now matches your 'tradelist'/'wishlist' db logic
-                tcgplayer_id: String(c.tcgplayer_id),
-                tcgplayer_name: c.tcgplayer_name,
-                card_number: c.card_number,
-                quantity: 1
-            }));
+// 2. Sync to user_cards (Private Inventory)
+if (selectedCards.length > 0) {
+    const userCardRows = selectedCards.map(c => ({
+        user_id: userId,
+        list_type: postType, 
+        tcgplayer_id: String(c.tcgplayer_id),
+        tcgplayer_name: c.tcgplayer_name,
+        card_number: c.card_number,
+        quantity: 1
+    }));
 
-            // This ensures they show up on your Main Page immediately
-            await supabase.from('user_cards').upsert(userCardRows, { 
-                onConflict: 'user_id,tcgplayer_id,list_type' 
-            });
+    // Switch from .upsert to .insert
+    // We don't want to "Update" (overwrite), we just want to "Add"
+    const { error: syncError } = await supabase
+        .from('user_cards')
+        .insert(userCardRows); 
+
+    if (syncError) {
+        // If the error code is 23505, it just means the card is already in the list.
+        // We can safely ignore this error so the post still completes.
+        if (syncError.code !== '23505') {
+            console.error("Sync Error:", syncError.message);
         }
+    }
+}
 
         setContent('');
         setSelectedCards([]);
@@ -93,14 +103,25 @@ const handleCreatePost = async () => {
         setLoading(false);
     };
 
+    const handleDeletePost = async (postId: string) => {
+        if (!window.confirm("Are you sure you want to delete this post?")) return;
+
+        const { error } = await supabase
+            .from('posts')
+            .delete()
+            .eq('id', postId)
+            .eq('user_id', userId); // Safety check to ensure only the owner can delete
+
+        if (error) {
+            console.error("Delete Error:", error.message);
+        } else {
+            fetchPosts(); // Refresh the feed
+        }
+    };
+
   return (
     <div style={{ minHeight: '100vh', background: '#0c0c0e', color: '#e8e6e0', fontFamily: 'sans-serif' }}>
-      <nav style={{ borderBottom: '1px solid #1e1e24', padding: '12px 24px' }}>
-        <div style={{ maxWidth: 800, margin: '0 auto', display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ fontWeight: 700 }}>Cardboard Addiction</span>
-          <span style={{ fontSize: 13, color: '#888' }}>{displayName}</span>
-        </div>
-      </nav>
+        <Navbar />
 
       <div style={{ maxWidth: 700, margin: '40px auto', padding: '0 20px' }}>
         
@@ -152,28 +173,66 @@ const handleCreatePost = async () => {
           </div>
         </div>
 
-        {/* ── FEED ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {posts.map((post) => (
-            <div key={post.id} style={{ background: '#111115', border: '1px solid #1e1e24', borderRadius: 12, padding: 20, marginBottom: 16 }}>
-                {/* ... Header with display_name and post_type ... */}
-                
-                <p style={{ color: '#d4d2cc', marginBottom: 16 }}>{post.content}</p>
-
-                {/* Display the Snapshot Cards */}
-                {post.cards && post.cards.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {post.cards.map((card: any, i: number) => (
-                    <div key={i} style={{ fontSize: 11, padding: '4px 8px', background: '#0c0c0e', border: '1px solid #1e1e24', borderRadius: 4, color: '#888' }}>
-                        <span style={{ color: '#4f46e5', fontWeight: 600, marginRight: 4 }}>{card.card_number}</span>
-                        {card.tcgplayer_name}
-                    </div>
-                    ))}
-            </div>
-    )}
-  </div>
-))}
+{/* ── FEED ── */}
+<div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+  {posts.map((post) => (
+    <div key={post.id} style={{ background: '#111115', border: '1px solid #1e1e24', borderRadius: 12, padding: 20 }}>
+      
+      {/* Post Header: Name & Delete */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+        <div style={{ display: 'flex', flexDirection: 'row', gap: 2 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: '#e8e6e0' }}>
+            {post.display_name || 'Anonymous Collector'}
+          </span>
+          <span style={{ 
+            fontSize: 10, 
+            fontWeight: 800, 
+            textTransform: 'uppercase', 
+            color: post.post_type === 'wishlist' ? '#ec4899' : '#4f46e5',
+            letterSpacing: '0.05em'
+          }}>
+            {post.post_type}
+          </span>
         </div>
+
+        {/* Show Delete Button only if current user is the author */}
+        {userId === post.user_id && (
+          <button 
+            onClick={() => handleDeletePost(post.id)}
+            style={{ 
+              background: 'transparent', 
+              border: 'none', 
+              color: '#444', 
+              cursor: 'pointer', 
+              fontSize: 18,
+              padding: '0 4px'
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = '#444')}
+          >
+            ×
+          </button>
+        )}
+      </div>
+        
+      <p style={{ color: '#d4d2cc', fontSize: 15, lineHeight: 1.5, marginBottom: 16, whiteSpace: 'pre-wrap' }}>
+        {post.content}
+      </p>
+
+      {/* Display the Snapshot Cards */}
+      {post.cards && post.cards.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingTop: 12, borderTop: '1px solid #18181e' }}>
+          {post.cards.map((card: any, i: number) => (
+            <div key={i} style={{ fontSize: 11, padding: '4px 8px', background: '#0c0c0e', border: '1px solid #1e1e24', borderRadius: 4, color: '#888' }}>
+              <span style={{ color: '#4f46e5', fontWeight: 600, marginRight: 4 }}>{card.card_number}</span>
+              {card.tcgplayer_name}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  ))}
+</div>
       </div>
 
       <SearchModal 
