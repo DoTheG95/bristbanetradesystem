@@ -43,7 +43,7 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
     setSelectedItems([]);
   }, [modalText, selectedCard, onAdd, selectedItems]);
 
-  // ── search logic — unchanged from original ──
+  // ── search logic ──
   useEffect(() => {
     if (!open) return;
 
@@ -167,12 +167,16 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
 
         {/* ── results ── */}
         {modalText.trim().length > 0 && (
-          <div style={{ maxHeight: 260, overflowY: 'auto', borderBottom: '1px solid #1e1e24' }}>
+          <div style={{ maxHeight: 320, overflowY: 'auto', borderBottom: '1px solid #1e1e24' }}>
             {!loadingResults && results.length === 0 && (
               <div style={{ padding: '20px', fontSize: 13, color: '#444', textAlign: 'center' }}>No results</div>
             )}
             {results.map((r) => {
               const alreadySelected = selectedItems.some((p) => p.id === r.id);
+              const imgSrc = r.tcgplayer_id
+                ? `https://tcgplayer-cdn.tcgplayer.com/product/${r.tcgplayer_id}_in_200x200.jpg`
+                : null;
+
               return (
                 <button
                   key={r.tcgplayer_id || r.id || r.tcgplayer_name}
@@ -187,20 +191,36 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
                     setResults([]);
                     setSelectedCard(null);
                   }}
-                  style={{ width: '100%', textAlign: 'left', padding: '10px 20px', background: alreadySelected ? '#141420' : 'transparent', border: 'none', borderBottom: '1px solid #18181e', cursor: alreadySelected ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}
+                  style={{ width: '100%', textAlign: 'left', padding: '8px 16px', background: alreadySelected ? '#141420' : 'transparent', border: 'none', borderBottom: '1px solid #18181e', cursor: alreadySelected ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
                   onMouseEnter={e => { if (!alreadySelected) (e.currentTarget as HTMLButtonElement).style.background = '#1a1a22'; }}
-                  onMouseLeave={e => { if (!alreadySelected) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                  onMouseLeave={e => { if (!alreadySelected) (e.currentTarget as HTMLButtonElement).style.background = alreadySelected ? '#141420' : 'transparent'; }}
                 >
-                  <div style={{ minWidth: 0 }}>
+                  {/* Card image */}
+                  <div style={{ width: 44, height: 44, flexShrink: 0, borderRadius: 4, overflow: 'hidden', background: '#18181e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {imgSrc ? (
+                      <img
+                        src={imgSrc}
+                        alt={r.tcgplayer_name}
+                        style={{ width: 44, height: 44, objectFit: 'contain' }}
+                      />
+                    ) : (
+                      <span style={{ fontSize: 10, color: '#333' }}>—</span>
+                    )}
+                  </div>
+
+                  {/* Name + number */}
+                  <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 500, color: alreadySelected ? '#555' : '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {r.tcgplayer_name || r.combinedName || r.id}
-                      {r.card_number && (
-                        <span style={{ marginLeft: 7, fontSize: 11, fontFamily: 'monospace', fontWeight: 400, color: alreadySelected ? '#444' : '#666' }}>
-                          {r.card_number}
-                        </span>
-                      )}
                     </div>
+                    {r.card_number && (
+                      <div style={{ fontSize: 11, fontFamily: 'monospace', color: alreadySelected ? '#444' : '#555', marginTop: 2 }}>
+                        {r.card_number}
+                      </div>
+                    )}
                   </div>
+
+                  {/* Add / added indicator */}
                   {alreadySelected
                     ? <span style={{ fontSize: 11, color: '#4f46e5', flexShrink: 0 }}>added</span>
                     : <span style={{ fontSize: 18, color: '#333', flexShrink: 0 }}>+</span>
