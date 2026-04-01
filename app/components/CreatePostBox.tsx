@@ -26,9 +26,9 @@ export default function CreatePostBox({ userId, displayName, userCommunities, on
     const [showSearch, setShowSearch] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [onlyCash, setOnlyCash] = useState(false);
-    const [selectedCommunityIds, setSelectedCommunityIds] = useState<string[]>([PUBLIC_ID]);
+    const [selectedCommunityIds, setSelectedCommunityIds] = useState<any[]>([PUBLIC_ID]);
 
-    const toggleCommunity = (id: string) => {
+    const toggleCommunity = (id: any) => {
         setSelectedCommunityIds(prev => {
             if (id === PUBLIC_ID) {
                 return prev.includes(PUBLIC_ID) ? [] : [PUBLIC_ID];
