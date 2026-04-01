@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState, useRef } from 'react';
 import SearchModal from '../components/SearchModal';
+import MakeOfferModal from '../components/MakeOfferModal';
 import { supabase } from '@/lib/supabase';
 import Navbar from '../components/Navbar';
 
@@ -26,15 +27,15 @@ interface PopoverState {
 interface MatchedCard {
   tcgplayer_id: string;
   tcgplayer_name: string;
-  card_number: string;
+  card_number: string | null;
   quantity: number | null;
 }
 
 interface MatchResult {
   userId: string;
   displayName: string;
-  theyHaveForMe: MatchedCard[]; // my wishlist ∩ their tradelist  ← primary
-  iHaveForThem: MatchedCard[];  // my tradelist ∩ their wishlist  ← bonus
+  theyHaveForMe: MatchedCard[];
+  iHaveForThem: MatchedCard[];
 }
 
 const EMPTY: Record<ListType, CardEntry[]> = { wishlist: [], tradelist: [] };
@@ -53,10 +54,13 @@ export default function MainPage() {
   const [popover, setPopover]         = useState<PopoverState | null>(null);
   const popoverRef                    = useRef<HTMLDivElement>(null);
 
-  // ── Match Me state ──
+  // Match Me state
   const [matchLoading, setMatchLoading]     = useState(false);
   const [matchResults, setMatchResults]     = useState<MatchResult[] | null>(null);
   const [showMatchModal, setShowMatchModal] = useState(false);
+
+  // Make Offer state
+  const [offerTarget, setOfferTarget] = useState<MatchResult | null>(null);
 
   /* ── auth guard + onboarding check ── */
   useEffect(() => {
@@ -129,13 +133,11 @@ export default function MainPage() {
     setMatchLoading(true);
     setMatchResults(null);
     setShowMatchModal(true);
-    console.log('Starting match process for user:', userId);
+
     try {
-      // Ensure wishlist + tradelist are loaded
       let myWishlist  = lists['wishlist'];
       let myTradelist = lists['tradelist'];
 
-      // If eith list is empty rerun query
       if (myWishlist.length === 0) {
         const { data } = await supabase
           .from('user_cards').select('*')
@@ -161,22 +163,19 @@ export default function MainPage() {
       if (myWishlist.length === 0) {
         setMatchResults([]);
         setMatchLoading(false);
-        console.log('No cards on wishlist, skipping match process');
         return;
       }
 
       const myWishlistIds  = myWishlist.map(c => c.tcgplayer_id);
       const myTradelistIds = myTradelist.map(c => c.tcgplayer_id);
 
-      // PRIMARY: other users who have my wishlist cards in their tradelist
       const { data: tradeMatches } = await supabase
         .from('user_cards')
         .select('user_id, tcgplayer_id, tcgplayer_name, card_number, quantity')
         .eq('list_type', 'tradelist')
         .in('tcgplayer_id', myWishlistIds)
         .neq('user_id', userId);
-        
-      // BONUS: other users who want my tradelist cards (their wishlist ∩ my tradelist)
+
       const { data: wishMatches } = myTradelistIds.length > 0
         ? await supabase
             .from('user_cards')
@@ -185,7 +184,7 @@ export default function MainPage() {
             .in('tcgplayer_id', myTradelistIds)
             .neq('user_id', userId)
         : { data: [] };
-      // Only users who have at least 1 card for me qualify
+
       const primaryUserIds = Array.from(new Set((tradeMatches ?? []).map(r => r.user_id)));
 
       if (primaryUserIds.length === 0) {
@@ -210,7 +209,6 @@ export default function MainPage() {
         });
       }
       for (const row of (wishMatches ?? [])) {
-        // Only attach bonus if they already have cards for me
         if (resultsMap[row.user_id]) {
           resultsMap[row.user_id].iHaveForThem.push({
             tcgplayer_id: String(row.tcgplayer_id), tcgplayer_name: row.tcgplayer_name ?? '',
@@ -219,7 +217,6 @@ export default function MainPage() {
         }
       }
 
-      // Sort: most cards-for-me first; mutual trades break ties
       const sorted = Object.values(resultsMap).sort((a, b) => {
         const diff = b.theyHaveForMe.length - a.theyHaveForMe.length;
         if (diff !== 0) return diff;
@@ -551,10 +548,7 @@ export default function MainPage() {
                   return (
                     <div
                       key={result.userId}
-                      style={{
-                        padding: '16px 20px',
-                        borderBottom: i < matchResults.length - 1 ? '1px solid #18181e' : 'none',
-                      }}
+                      style={{ padding: '16px 20px', borderBottom: i < matchResults.length - 1 ? '1px solid #18181e' : 'none' }}
                     >
                       {/* Trader header */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
@@ -576,13 +570,27 @@ export default function MainPage() {
                             </div>
                           )}
                         </div>
-                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                          <div style={{ fontSize: 18, fontWeight: 700, color: '#4f46e5', lineHeight: 1 }}>{result.theyHaveForMe.length}</div>
-                          <div style={{ fontSize: 10, color: '#444', marginTop: 2 }}>card{result.theyHaveForMe.length !== 1 ? 's' : ''} for you</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: 18, fontWeight: 700, color: '#4f46e5', lineHeight: 1 }}>{result.theyHaveForMe.length}</div>
+                            <div style={{ fontSize: 10, color: '#444', marginTop: 2 }}>card{result.theyHaveForMe.length !== 1 ? 's' : ''} for you</div>
+                          </div>
+                          {/* Make Offer button */}
+                          <button
+                            onClick={() => {
+                              setShowMatchModal(false);
+                              setOfferTarget(result);
+                            }}
+                            style={{ padding: '6px 14px', borderRadius: 7, border: 'none', background: '#4f46e5', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                            onMouseEnter={e => (e.currentTarget.style.background = '#6056f5')}
+                            onMouseLeave={e => (e.currentTarget.style.background = '#4f46e5')}
+                          >
+                            Make Offer
+                          </button>
                         </div>
                       </div>
 
-                      {/* Cards they have from my wishlist — PRIMARY */}
+                      {/* Cards they have from my wishlist */}
                       <div style={{ marginBottom: isMutual ? 12 : 0 }}>
                         <div style={{ fontSize: 10, fontWeight: 600, color: '#4f46e5', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
                           In their trade list ↓
@@ -590,26 +598,18 @@ export default function MainPage() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                           {result.theyHaveForMe.map(card => (
                             <div key={card.tcgplayer_id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', background: '#16161c', borderRadius: 7 }}>
-                              <img
-                                src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`}
-                                alt={card.tcgplayer_name}
-                                style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
-                              />
+                              <img src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`} alt={card.tcgplayer_name} style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }} />
                               <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontSize: 12, fontWeight: 500, color: '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                  {card.tcgplayer_name || '—'}
-                                </div>
+                                <div style={{ fontSize: 12, fontWeight: 500, color: '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.tcgplayer_name || '—'}</div>
                                 <div style={{ fontSize: 10, color: '#444', fontFamily: 'monospace' }}>{card.card_number}</div>
                               </div>
-                              {card.quantity != null && (
-                                <span style={{ fontSize: 10, color: '#555', flexShrink: 0 }}>×{card.quantity}</span>
-                              )}
+                              {card.quantity != null && <span style={{ fontSize: 10, color: '#555', flexShrink: 0 }}>×{card.quantity}</span>}
                             </div>
                           ))}
                         </div>
                       </div>
 
-                      {/* BONUS: cards they want from my tradelist */}
+                      {/* Bonus: cards they want from my tradelist */}
                       {isMutual && (
                         <div>
                           <div style={{ fontSize: 10, fontWeight: 600, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
@@ -618,20 +618,12 @@ export default function MainPage() {
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                             {result.iHaveForThem.map(card => (
                               <div key={card.tcgplayer_id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', background: '#16161c', border: '1px solid #2a2218', borderRadius: 7 }}>
-                                <img
-                                  src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`}
-                                  alt={card.tcgplayer_name}
-                                  style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
-                                />
+                                <img src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`} alt={card.tcgplayer_name} style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }} />
                                 <div style={{ flex: 1, minWidth: 0 }}>
-                                  <div style={{ fontSize: 12, fontWeight: 500, color: '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    {card.tcgplayer_name || '—'}
-                                  </div>
+                                  <div style={{ fontSize: 12, fontWeight: 500, color: '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.tcgplayer_name || '—'}</div>
                                   <div style={{ fontSize: 10, color: '#444', fontFamily: 'monospace' }}>{card.card_number}</div>
                                 </div>
-                                {card.quantity != null && (
-                                  <span style={{ fontSize: 10, color: '#555', flexShrink: 0 }}>×{card.quantity}</span>
-                                )}
+                                {card.quantity != null && <span style={{ fontSize: 10, color: '#555', flexShrink: 0 }}>×{card.quantity}</span>}
                               </div>
                             ))}
                           </div>
@@ -644,6 +636,17 @@ export default function MainPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Make Offer Modal ── */}
+      {offerTarget && (
+        <MakeOfferModal
+          open={!!offerTarget}
+          onClose={() => setOfferTarget(null)}
+          receiverId={offerTarget.userId}
+          receiverName={offerTarget.displayName}
+          theyHaveForMe={offerTarget.theyHaveForMe}
+        />
       )}
 
       <style>{`
