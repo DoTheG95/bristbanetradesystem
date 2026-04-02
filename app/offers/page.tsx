@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Navbar from '../components/Navbar';
 import { Trade, TradeItem, TradeMessage, TradeStatus } from '@/lib/tradeTypes';
+import { Suspense } from 'react';
 
 type TabType = 'incoming' | 'outgoing' | 'history';
 
@@ -16,7 +17,7 @@ const STATUS_COLOURS: Record<TradeStatus, string> = {
   countered: '#a78bfa',
 };
 
-export default function OffersPage() {
+function OffersContent() {
   const searchParams                          = useSearchParams();
   const [userId, setUserId]                   = useState<string | null>(null);
   const [checking, setChecking]               = useState(true);
@@ -92,7 +93,7 @@ export default function OffersPage() {
 
   /* ── open trade from URL param ── */
   useEffect(() => {
-    const tradeId = searchParams.get('trade');
+    const tradeId = searchParams?.get('trade');
     if (tradeId) setExpandedId(tradeId);
   }, [searchParams]);
 
@@ -497,5 +498,13 @@ export default function OffersPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function OffersPage() {
+  return (
+    <Suspense fallback={null}>
+      <OffersContent />
+    </Suspense>
   );
 }

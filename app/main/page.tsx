@@ -28,7 +28,7 @@ interface MatchedCard {
   tcgplayer_id: string;
   tcgplayer_name: string;
   card_number: string | null;
-  quantity: number | null;
+  qty: number | null;
 }
 
 interface MatchResult {
@@ -205,14 +205,14 @@ export default function MainPage() {
       for (const row of (tradeMatches ?? [])) {
         resultsMap[row.user_id]?.theyHaveForMe.push({
           tcgplayer_id: String(row.tcgplayer_id), tcgplayer_name: row.tcgplayer_name ?? '',
-          card_number: row.card_number ?? '', quantity: row.quantity ?? null,
+          card_number: row.card_number ?? '', qty: row.quantity ?? null,
         });
       }
       for (const row of (wishMatches ?? [])) {
         if (resultsMap[row.user_id]) {
           resultsMap[row.user_id].iHaveForThem.push({
             tcgplayer_id: String(row.tcgplayer_id), tcgplayer_name: row.tcgplayer_name ?? '',
-            card_number: row.card_number ?? '', quantity: row.quantity ?? null,
+            card_number: row.card_number ?? '', qty: row.quantity ?? null,
           });
         }
       }
@@ -603,7 +603,7 @@ export default function MainPage() {
                                 <div style={{ fontSize: 12, fontWeight: 500, color: '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.tcgplayer_name || '—'}</div>
                                 <div style={{ fontSize: 10, color: '#444', fontFamily: 'monospace' }}>{card.card_number}</div>
                               </div>
-                              {card.quantity != null && <span style={{ fontSize: 10, color: '#555', flexShrink: 0 }}>×{card.quantity}</span>}
+                              {card.qty != null && <span style={{ fontSize: 10, color: '#555', flexShrink: 0 }}>×{card.qty}</span>}
                             </div>
                           ))}
                         </div>
@@ -623,7 +623,7 @@ export default function MainPage() {
                                   <div style={{ fontSize: 12, fontWeight: 500, color: '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.tcgplayer_name || '—'}</div>
                                   <div style={{ fontSize: 10, color: '#444', fontFamily: 'monospace' }}>{card.card_number}</div>
                                 </div>
-                                {card.quantity != null && <span style={{ fontSize: 10, color: '#555', flexShrink: 0 }}>×{card.quantity}</span>}
+                                {card.qty != null && <span style={{ fontSize: 10, color: '#555', flexShrink: 0 }}>×{card.qty}</span>}
                               </div>
                             ))}
                           </div>
