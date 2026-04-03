@@ -417,7 +417,7 @@ export default function MainPage() {
                   placeholder="—"
                   style={{ width: '100%', padding: '4px 8px', background: '#18181e', border: '1px solid #2a2a32', borderRadius: 6, color: '#d4d2cc', fontSize: 13, textAlign: 'center', outline: 'none' }}
                 />
-                <button
+                <button 
                   onClick={() => removeCard(activeTab, card.id)}
                   style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid #2a2a32', background: 'transparent', color: '#444', cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#c0392b'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#c0392b'; }}

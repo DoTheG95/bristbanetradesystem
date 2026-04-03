@@ -99,9 +99,31 @@ export default function MakeOfferModal({ open, onClose, receiverId, receiverName
     ));
   };
 
+
   const handleSubmit = useCallback(async () => {
     if (!myUserId) return;
     if (requesting.length === 0) { setError('Select at least one card to request.'); return; }
+
+    // Validate requested qtys don't exceed what they actually have
+    for (const req of requesting) {
+      if (req.qty == null) continue;
+      const source = theyHaveForMe.find(c => c.tcgplayer_id === req.tcgplayer_id);
+      if (source && source.qty != null && req.qty > source.qty) {
+        setError(`You can only request up to ${source.qty}× ${source.tcgplayer_name}.`);
+        return;
+      }
+    }
+
+    // Validate offered qtys don't exceed what you actually have
+    for (const off of offering) {
+      if (off.qty == null) continue;
+      const source = myTradelist.find(c => c.tcgplayer_id === off.tcgplayer_id);
+      if (source && source.qty != null && off.qty > source.qty) {
+        setError(`You only have ${source.qty}× ${off.tcgplayer_name} to offer.`);
+        return;
+      }
+    }
+
     setSubmitting(true);
     setError(null);
 

@@ -155,44 +155,53 @@ function OffersContent() {
     setSendingMsg(false);
   }, [userId, newMessage]);
 
-  /* ── accept trade ── */
-  const acceptTrade = useCallback(async (trade: Trade) => {
-    if (!userId) return;
-    setActionLoading(trade.id);
-    try {
-      // Update status
-      await supabase.from('trades').update({ status: 'accepted' }).eq('id', trade.id);
+const acceptTrade = useCallback(async (trade: Trade) => {
+  if (!userId) return;
+  setActionLoading(trade.id);
+  try {
+    // Deduct qty from user_cards for each trade item where qty is not null
+    for (const item of (trade.items ?? [])) {
+      if (item.qty == null) continue; // null = uncountable, skip
 
-      // Deduct qty from user_cards for each trade item
-      for (const item of (trade.items ?? [])) {
-        if (item.qty == null) continue; // null qty = uncountable, leave as-is
+      const { data: existing, error: fetchErr } = await supabase
+        .from('user_cards')
+        .select('id, quantity')
+        .eq('user_id', item.offered_by)   // the person giving this card
+        .eq('tcgplayer_id', item.tcgplayer_id)
+        .eq('list_type', 'tradelist')
+        .maybeSingle();                    // maybeSingle won't error if no row found
 
-        const { data: existing } = await supabase
-          .from('user_cards')
-          .select('id, quantity')
-          .eq('user_id', item.offered_by)
-          .eq('tcgplayer_id', item.tcgplayer_id)
-          .eq('list_type', 'tradelist')
-          .single();
+      if (fetchErr) { console.error('Fetch error:', fetchErr); continue; }
+      if (!existing) { console.warn('No tradelist entry found for', item.tcgplayer_id, 'user', item.offered_by); continue; }
 
-        if (!existing) continue;
+      // If existing qty is null (uncountable), leave it alone
+      if (existing.quantity == null) continue;
 
-        const newQty = (existing.quantity ?? 0) - item.qty;
-        if (newQty <= 0) {
-          await supabase.from('user_cards').delete().eq('id', existing.id);
-        } else {
-          await supabase.from('user_cards').update({ quantity: newQty }).eq('id', existing.id);
-        }
+      const newQty = existing.quantity - item.qty;
+      if (newQty <= 0) {
+        await supabase.from('user_cards').delete().eq('id', existing.id);
+      } else {
+        await supabase.from('user_cards').update({ quantity: newQty }).eq('id', existing.id);
       }
-
-      // Notify sender
-      await supabase.from('notifications').insert({ user_id: trade.sender_id, trade_id: trade.id, type: 'offer_accepted' });
-
-      loadTrades(activeTab, userId);
-    } finally {
-      setActionLoading(null);
     }
-  }, [userId, activeTab, loadTrades]);
+
+    // Update status after deductions
+    await supabase.from('trades').update({ status: 'accepted' }).eq('id', trade.id);
+
+    // Notify sender
+    await supabase.from('notifications').insert({
+      user_id:  trade.sender_id,
+      trade_id: trade.id,
+      type:     'offer_accepted',
+    });
+
+    loadTrades(activeTab, userId);
+  } catch (err) {
+    console.error('Accept error:', err);
+  } finally {
+    setActionLoading(null);
+  }
+}, [userId, activeTab, loadTrades]);
 
   /* ── decline trade ── */
   const declineTrade = useCallback(async (trade: Trade) => {
