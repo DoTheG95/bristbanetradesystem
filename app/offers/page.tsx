@@ -155,40 +155,71 @@ function OffersContent() {
     setSendingMsg(false);
   }, [userId, newMessage]);
 
-  /* ── accept trade ── */
   const acceptTrade = useCallback(async (trade: Trade) => {
     if (!userId) return;
     setActionLoading(trade.id);
     try {
-      // Update status
-      await supabase.from('trades').update({ status: 'accepted' }).eq('id', trade.id);
-
-      // Deduct qty from user_cards for each trade item
       for (const item of (trade.items ?? [])) {
-        if (item.qty == null) continue; // null qty = uncountable, leave as-is
-
-        const { data: existing } = await supabase
+        const providerId  = item.offered_by;
+        const receiverId  = item.offered_by === trade.sender_id
+          ? trade.receiver_id   // sender is giving → receiver gets it
+          : trade.sender_id;    // receiver is giving → sender gets it
+  
+        // 1. Deduct from provider's tradelist
+        const { data: providerEntry } = await supabase
           .from('user_cards')
           .select('id, quantity')
-          .eq('user_id', item.offered_by)
+          .eq('user_id', providerId)
           .eq('tcgplayer_id', item.tcgplayer_id)
           .eq('list_type', 'tradelist')
-          .single();
-
-        if (!existing) continue;
-
-        const newQty = (existing.quantity ?? 0) - item.qty;
-        if (newQty <= 0) {
-          await supabase.from('user_cards').delete().eq('id', existing.id);
-        } else {
-          await supabase.from('user_cards').update({ quantity: newQty }).eq('id', existing.id);
+          .maybeSingle();
+  
+        if (providerEntry) {
+          if (providerEntry.quantity != null && item.qty != null) {
+            const newQty = providerEntry.quantity - item.qty;
+            if (newQty <= 0) {
+              await supabase.from('user_cards').delete().eq('id', providerEntry.id);
+            } else {
+              await supabase.from('user_cards').update({ quantity: newQty }).eq('id', providerEntry.id);
+            }
+          }
+          // both null — leave as-is
+        }
+  
+        // 2. Deduct from receiver's wishlist
+        const { data: receiverWishEntry } = await supabase
+          .from('user_cards')
+          .select('id, quantity')
+          .eq('user_id', receiverId)
+          .eq('tcgplayer_id', item.tcgplayer_id)
+          .eq('list_type', 'wishlist')
+          .maybeSingle();
+  
+        if (receiverWishEntry) {
+          if (receiverWishEntry.quantity != null && item.qty != null) {
+            const newQty = receiverWishEntry.quantity - item.qty;
+            if (newQty <= 0) {
+              await supabase.from('user_cards').delete().eq('id', receiverWishEntry.id);
+            } else {
+              await supabase.from('user_cards').update({ quantity: newQty }).eq('id', receiverWishEntry.id);
+            }
+          } else {
+            // wishlist qty is null — trade fulfilled it, remove entirely
+            await supabase.from('user_cards').delete().eq('id', receiverWishEntry.id);
+          }
         }
       }
-
-      // Notify sender
-      await supabase.from('notifications').insert({ user_id: trade.sender_id, trade_id: trade.id, type: 'offer_accepted' });
-
+  
+      await supabase.from('trades').update({ status: 'accepted' }).eq('id', trade.id);
+      await supabase.from('notifications').insert({
+        user_id:  trade.sender_id,
+        trade_id: trade.id,
+        type:     'offer_accepted',
+      });
+  
       loadTrades(activeTab, userId);
+    } catch (err) {
+      console.error('Accept error:', err);
     } finally {
       setActionLoading(null);
     }
