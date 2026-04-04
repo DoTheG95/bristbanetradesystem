@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Notification, NotificationType } from '@/lib/tradeTypes';
+import { Notification, NotificationType } from '@/lib/tradetypes';
 
 const NOTIF_LABELS: Record<NotificationType, string> = {
   offer_received:   'New trade offer received',
