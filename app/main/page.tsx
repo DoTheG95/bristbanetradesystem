@@ -133,11 +133,11 @@ export default function MainPage() {
     setMatchLoading(true);
     setMatchResults(null);
     setShowMatchModal(true);
-
+  
     try {
       let myWishlist  = lists['wishlist'];
       let myTradelist = lists['tradelist'];
-
+  
       if (myWishlist.length === 0) {
         const { data } = await supabase
           .from('user_cards').select('*')
@@ -148,7 +148,7 @@ export default function MainPage() {
         }));
         setLists(prev => ({ ...prev, wishlist: myWishlist }));
       }
-
+  
       if (myTradelist.length === 0) {
         const { data } = await supabase
           .from('user_cards').select('*')
@@ -159,24 +159,28 @@ export default function MainPage() {
         }));
         setLists(prev => ({ ...prev, tradelist: myTradelist }));
       }
-
-      if (myWishlist.length === 0) {
+  
+      const myWishlistIds  = myWishlist.map(c => c.tcgplayer_id);
+      const myTradelistIds = myTradelist.map(c => c.tcgplayer_id);
+  
+      if (myWishlistIds.length === 0 && myTradelistIds.length === 0) {
         setMatchResults([]);
         setMatchLoading(false);
         return;
       }
-
-      const myWishlistIds  = myWishlist.map(c => c.tcgplayer_id);
-      const myTradelistIds = myTradelist.map(c => c.tcgplayer_id);
-
-      const { data: tradeMatches } = await supabase
-        .from('user_cards')
-        .select('user_id, tcgplayer_id, tcgplayer_name, card_number, quantity')
-        .eq('list_type', 'tradelist')
-        .in('tcgplayer_id', myWishlistIds)
-        .neq('user_id', userId);
-
-      const { data: wishMatches } = myTradelistIds.length > 0
+  
+      // People who have what I want (their tradelist ∩ my wishlist)
+      const { data: theyHaveWhatIWant } = myWishlistIds.length > 0
+        ? await supabase
+            .from('user_cards')
+            .select('user_id, tcgplayer_id, tcgplayer_name, card_number, quantity')
+            .eq('list_type', 'tradelist')
+            .in('tcgplayer_id', myWishlistIds)
+            .neq('user_id', userId)
+        : { data: [] };
+  
+      // People who want what I have (their wishlist ∩ my tradelist)
+      const { data: theyWantWhatIHave } = myTradelistIds.length > 0
         ? await supabase
             .from('user_cards')
             .select('user_id, tcgplayer_id, tcgplayer_name, card_number, quantity')
@@ -184,45 +188,50 @@ export default function MainPage() {
             .in('tcgplayer_id', myTradelistIds)
             .neq('user_id', userId)
         : { data: [] };
-
-      const primaryUserIds = Array.from(new Set((tradeMatches ?? []).map(r => r.user_id)));
-
-      if (primaryUserIds.length === 0) {
+  
+      // Union of all matched user IDs — either direction qualifies
+      const allUserIds = Array.from(new Set([
+        ...(theyHaveWhatIWant ?? []).map(r => r.user_id),
+        ...(theyWantWhatIHave ?? []).map(r => r.user_id),
+      ]));
+  
+      if (allUserIds.length === 0) {
         setMatchResults([]);
         setMatchLoading(false);
         return;
       }
-
+  
       const { data: profiles } = await supabase
-        .from('profiles').select('id, display_name').in('id', primaryUserIds);
-
+        .from('profiles').select('id, display_name').in('id', allUserIds);
+  
       const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p.display_name ?? 'Unknown']));
-
+  
       const resultsMap: Record<string, MatchResult> = {};
-      for (const uid of primaryUserIds) {
+      for (const uid of allUserIds) {
         resultsMap[uid] = { userId: uid, displayName: profileMap[uid] ?? 'Unknown', theyHaveForMe: [], iHaveForThem: [] };
       }
-      for (const row of (tradeMatches ?? [])) {
+  
+      for (const row of (theyHaveWhatIWant ?? [])) {
         resultsMap[row.user_id]?.theyHaveForMe.push({
           tcgplayer_id: String(row.tcgplayer_id), tcgplayer_name: row.tcgplayer_name ?? '',
           card_number: row.card_number ?? '', qty: row.quantity ?? null,
         });
       }
-      for (const row of (wishMatches ?? [])) {
-        if (resultsMap[row.user_id]) {
-          resultsMap[row.user_id].iHaveForThem.push({
-            tcgplayer_id: String(row.tcgplayer_id), tcgplayer_name: row.tcgplayer_name ?? '',
-            card_number: row.card_number ?? '', qty: row.quantity ?? null,
-          });
-        }
+  
+      for (const row of (theyWantWhatIHave ?? [])) {
+        resultsMap[row.user_id]?.iHaveForThem.push({
+          tcgplayer_id: String(row.tcgplayer_id), tcgplayer_name: row.tcgplayer_name ?? '',
+          card_number: row.card_number ?? '', qty: row.quantity ?? null,
+        });
       }
-
+  
+      // Sort: mutual matches first, then by total cards matched
       const sorted = Object.values(resultsMap).sort((a, b) => {
-        const diff = b.theyHaveForMe.length - a.theyHaveForMe.length;
-        if (diff !== 0) return diff;
-        return (b.iHaveForThem.length > 0 ? 1 : 0) - (a.iHaveForThem.length > 0 ? 1 : 0);
+        const aScore = a.theyHaveForMe.length + a.iHaveForThem.length + (a.theyHaveForMe.length > 0 && a.iHaveForThem.length > 0 ? 10 : 0);
+        const bScore = b.theyHaveForMe.length + b.iHaveForThem.length + (b.theyHaveForMe.length > 0 && b.iHaveForThem.length > 0 ? 10 : 0);
+        return bScore - aScore;
       });
-
+  
       setMatchResults(sorted);
     } catch (err) {
       console.error('Match error:', err);
@@ -515,9 +524,9 @@ export default function MainPage() {
                 <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#e8e6e0' }}>Trade Matches</h2>
                 {!matchLoading && matchResults !== null && (
                   <p style={{ margin: '3px 0 0', fontSize: 12, color: '#555' }}>
-                    {matchResults.length === 0
-                      ? 'No matches found for your wishlist'
-                      : `${matchResults.length} trader${matchResults.length !== 1 ? 's' : ''} have cards you want`}
+                  {matchResults.length === 0
+                    ? 'No matches found'
+                    : `${matchResults.length} trader${matchResults.length !== 1 ? 's' : ''} matched`}
                   </p>
                 )}
               </div>
@@ -544,8 +553,7 @@ export default function MainPage() {
                 </div>
               ) : (
                 matchResults.map((result, i) => {
-                  const isMutual = result.iHaveForThem.length > 0;
-                  return (
+                const isMutual = result.theyHaveForMe.length > 0 && result.iHaveForThem.length > 0;                  return (
                     <div
                       key={result.userId}
                       style={{ padding: '16px 20px', borderBottom: i < matchResults.length - 1 ? '1px solid #18181e' : 'none' }}
@@ -563,13 +571,23 @@ export default function MainPage() {
                           {result.displayName.charAt(0).toUpperCase()}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 14, fontWeight: 600, color: '#e8e6e0' }}>{result.displayName}</div>
-                          {isMutual && (
-                            <div style={{ fontSize: 10, color: '#4ade80', fontWeight: 600, marginTop: 1 }}>
-                              ✦ Mutual — they want cards you have too
-                            </div>
-                          )}
-                        </div>
+  <div style={{ fontSize: 14, fontWeight: 600, color: '#e8e6e0' }}>{result.displayName}</div>
+  {isMutual && (
+    <div style={{ fontSize: 10, color: '#4ade80', fontWeight: 600, marginTop: 1 }}>
+      ✦ Mutual trade — cards wanted on both sides
+    </div>
+  )}
+  {!isMutual && result.theyHaveForMe.length > 0 && result.iHaveForThem.length === 0 && (
+    <div style={{ fontSize: 10, color: '#4f46e5', fontWeight: 600, marginTop: 1 }}>
+      They have cards you want
+    </div>
+  )}
+  {!isMutual && result.iHaveForThem.length > 0 && result.theyHaveForMe.length === 0 && (
+    <div style={{ fontSize: 10, color: '#f59e0b', fontWeight: 600, marginTop: 1 }}>
+      You have cards they want
+    </div>
+  )}
+</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <div style={{ textAlign: 'right' }}>
                             <div style={{ fontSize: 18, fontWeight: 700, color: '#4f46e5', lineHeight: 1 }}>{result.theyHaveForMe.length}</div>
@@ -609,8 +627,9 @@ export default function MainPage() {
                         </div>
                       </div>
 
+
                       {/* Bonus: cards they want from my tradelist */}
-                      {isMutual && (
+                      {result.iHaveForThem.length  && (
                         <div>
                           <div style={{ fontSize: 10, fontWeight: 600, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
                             They're looking for ({result.iHaveForThem.length}) ↓
