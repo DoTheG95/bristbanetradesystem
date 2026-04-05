@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { DraftTradeItem } from '@/lib/tradeTypes';
+import { DraftTradeItem } from '@/lib/tradetypes';
 
 interface MatchedCard {
   tcgplayer_id: string;
