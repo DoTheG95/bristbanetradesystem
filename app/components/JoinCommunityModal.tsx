@@ -179,7 +179,7 @@ setPreview({
                                     borderRadius: 8, color: '#e8e6e0', fontSize: 16,
                                     fontWeight: 700, letterSpacing: 4,
                                     outline: 'none', fontFamily: 'monospace',
-                                    boxSizing: 'border-box', textTransform: 'uppercase',
+                                    boxSizing: 'border-box',
                                 }}
                             />
                             {error && (

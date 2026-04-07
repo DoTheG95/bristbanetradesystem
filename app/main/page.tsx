@@ -382,11 +382,39 @@ export default function MainPage() {
               {matchLoading ? 'Matching...' : 'Match me!'}
             </button>
           </div>
+          {/* ── action bar ── */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <button
+              onClick={() => setShowModal(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 18px', borderRadius: 8, border: '1px solid #2a2a32', background: '#141418', color: '#d4d2cc', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#3a3a48'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#2a2a32'; }}
+            >
+              <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> Add cards
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              {saveMsg && (
+                <span style={{ fontSize: 12, color: saveMsg.includes('failed') ? '#c0392b' : '#4ade80' }}>
+                  {saveMsg}
+                </span>
+              )}
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#4f46e5', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}
+              >
+                {saving ? 'Saving…' : 'Save list'}
+              </button>
+            </div>
+          </div>
         </div>
+
+        
      
         {/* ── card table ── */}
         <div style={{ background: '#111115', border: '1px solid #1e1e24', borderRadius: 12, overflow: 'hidden', marginBottom: 20 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 220px 90px 36px', gap: 8, padding: '10px 16px', borderBottom: '1px solid #1e1e24', background: '#0e0e12' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr 90px 36px', gap: 8, padding: '10px 16px', borderBottom: '1px solid #1e1e24', background: '#0e0e12' }}>
             {['', 'Card', 'Qty', ''].map((h, i) => (
               <span key={i} style={{ fontSize: 10, fontWeight: 600, color: '#444', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{h}</span>
             ))}
@@ -403,7 +431,7 @@ export default function MainPage() {
             cards.map((card, i) => (
               <div
                 key={card.id}
-                style={{ display: 'grid', gridTemplateColumns: '1fr 220px 90px 36px', gap: 8, alignItems: 'center', padding: '10px 16px', borderBottom: i < cards.length - 1 ? '1px solid #18181e' : 'none', transition: 'background 0.1s' }}
+                style={{ display: 'grid', gridTemplateColumns: '150px 1fr 90px 36px', gap: 8, alignItems: 'center', padding: '10px 16px', borderBottom: i < cards.length - 1 ? '1px solid #18181e' : 'none', transition: 'background 0.1s' }}
                 onMouseEnter={e => (e.currentTarget.style.background = '#141418')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
               >
@@ -412,6 +440,7 @@ export default function MainPage() {
                   onMouseEnter={e => handleImageMouseEnter(e, card)}
                   onMouseLeave={handleImageMouseLeave}
                   alt={card.tcgplayer_name}
+                  style={{ width: 100, height: 100, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
                 />
                 <div style={{ fontSize: 12, color: '#555', fontFamily: 'monospace' }}>
                   <div style={{ fontSize: 13, fontWeight: 500, color: '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -435,33 +464,6 @@ export default function MainPage() {
               </div>
             ))
           )}
-        </div>
-
-        {/* ── action bar ── */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <button
-            onClick={() => setShowModal(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 18px', borderRadius: 8, border: '1px solid #2a2a32', background: '#141418', color: '#d4d2cc', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#3a3a48'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#2a2a32'; }}
-          >
-            <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> Add cards
-          </button>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {saveMsg && (
-              <span style={{ fontSize: 12, color: saveMsg.includes('failed') ? '#c0392b' : '#4ade80' }}>
-                {saveMsg}
-              </span>
-            )}
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              style={{ padding: '9px 24px', borderRadius: 8, border: 'none', background: '#4f46e5', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}
-            >
-              {saving ? 'Saving…' : 'Save list'}
-            </button>
-          </div>
         </div>
       </div>
 
