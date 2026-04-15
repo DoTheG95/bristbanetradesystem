@@ -172,6 +172,7 @@ export default function PostPage() {
     );
 }
 
+
 /* ── Shared PostCard ── */
 export function PostCard({ post, currentUserId, communityNameMap, onDelete }: {
     post: any;
@@ -179,6 +180,8 @@ export function PostCard({ post, currentUserId, communityNameMap, onDelete }: {
     communityNameMap: Record<number, string>;
     onDelete: (id: string) => void;
 }) {
+    const [openModal, setOpenModal] = useState<any[] | null>(null);
+
     // Build the audience label e.g. "Public / Community A / Community B"
     const audienceParts: string[] = [];
     if (post.is_public) audienceParts.push('Public');
@@ -226,41 +229,119 @@ export function PostCard({ post, currentUserId, communityNameMap, onDelete }: {
             </p>
 
             {post.cards && post.cards.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, paddingTop: 12, borderTop: '1px solid #18181e' }}>
-                    {post.cards.map((card: any, i: number) => (
-                        <div
-                            key={i}
-                            style={{
-                                display: 'flex',
-                                alignItems: 'flex-start',
-                                gap: 10,
-                                width: '100%',
-                                maxWidth: 360,
-                                minWidth: 220,
-                                padding: '10px 12px',
-                                background: '#0c0c0e',
-                                border: '1px solid #1e1e24',
-                                borderRadius: 10,
-                                color: '#888',
-                            }}
-                        >
-                            <img
-                                src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`}
-                                alt={card.tcgplayer_name}
-                                style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, background: '#111' }}
-                            />
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-                                <span style={{ fontSize: 11, color: '#4f46e5', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                                    {card.card_number || 'No number'}
-                                </span>
-                                <span style={{ fontSize: 14, fontWeight: 600, color: '#e8e6e0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {card.tcgplayer_name || 'Unknown card'}
-                                </span>
-                            </div>
-                        </div>
-                    ))}
+    <>
+        {/* Preview Row */}
+        <div
+            style={{
+                display: 'flex',
+                gap: 10,
+                overflowX: 'auto',
+                paddingTop: 12,
+                borderTop: '1px solid #18181e',
+                cursor: 'pointer'
+            }}
+            onClick={() => setOpenModal(post.cards)}
+        >
+            {post.cards.slice(0, 3).map((card: any, i: number) => (
+                <div
+                    key={i}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 10,
+                        padding: '10px 12px',
+                        background: '#0c0c0e',
+                        border: '1px solid #1e1e24',
+                        borderRadius: 10,
+                        color: '#888',
+                    }}
+                >
+                    <img
+                        key={i}
+                        src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`}
+                        alt={card.tcgplayer_name}
+                        style={{
+                            width: 80,
+                            height: 80,
+                            objectFit: 'cover',
+                            borderRadius: 8,
+                            background: '#111',
+                            flexShrink: 0
+                        }}
+                    />
+                {card.tcgplayer_name}
+                </div>
+            ))}
+
+            {post.cards.length > 3 && (
+                <div
+                    style={{
+                        width: 80,
+                        height: 80,
+                        borderRadius: 8,
+                        background: '#1e1e24',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: '#888'
+                    }}
+                >
+                    +{post.cards.length - 3}
                 </div>
             )}
+        </div>
+    </>
+)}
+{openModal && (
+    <div
+        onClick={() => setOpenModal(null)}
+        style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000
+        }}
+    >
+        <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+                background: '#111115',
+                padding: 20,
+                borderRadius: 12,
+                maxWidth: 600,
+                width: '90%',
+                maxHeight: '80vh',
+                overflowY: 'auto'
+            }}
+        >
+            <div
+                style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
+                    gap: 12
+                }}
+            >
+                {openModal.map((card, i) => (
+                    <img
+                        key={i}
+                        src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`}
+                        alt={card.tcgplayer_name}
+                        style={{
+                            width: '100%',
+                            borderRadius: 8
+                        }}
+                    />
+                ))}
+            </div>
+        </div>
+    </div>
+)}
+
         </div>
     );
 }
