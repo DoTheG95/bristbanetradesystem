@@ -46,7 +46,7 @@ export default function Home() {
 
   const handleEmailLogin = async () => {
     setError(null);
-    setMessage(null);a
+    setMessage(null);
     if (!email || !password) { setError('Please enter your email and password.'); return; }
     setLoading(true);
     const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
