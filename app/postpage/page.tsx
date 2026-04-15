@@ -226,11 +226,37 @@ export function PostCard({ post, currentUserId, communityNameMap, onDelete }: {
             </p>
 
             {post.cards && post.cards.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingTop: 12, borderTop: '1px solid #18181e' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, paddingTop: 12, borderTop: '1px solid #18181e' }}>
                     {post.cards.map((card: any, i: number) => (
-                        <div key={i} style={{ fontSize: 11, padding: '4px 8px', background: '#0c0c0e', border: '1px solid #1e1e24', borderRadius: 4, color: '#888' }}>
-                            <span style={{ color: '#4f46e5', fontWeight: 600, marginRight: 4 }}>{card.card_number}</span>
-                            {card.tcgplayer_name}
+                        <div
+                            key={i}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                gap: 10,
+                                width: '100%',
+                                maxWidth: 360,
+                                minWidth: 220,
+                                padding: '10px 12px',
+                                background: '#0c0c0e',
+                                border: '1px solid #1e1e24',
+                                borderRadius: 10,
+                                color: '#888',
+                            }}
+                        >
+                            <img
+                                src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`}
+                                alt={card.tcgplayer_name}
+                                style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, background: '#111' }}
+                            />
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                                <span style={{ fontSize: 11, color: '#4f46e5', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                                    {card.card_number || 'No number'}
+                                </span>
+                                <span style={{ fontSize: 14, fontWeight: 600, color: '#e8e6e0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {card.tcgplayer_name || 'Unknown card'}
+                                </span>
+                            </div>
                         </div>
                     ))}
                 </div>

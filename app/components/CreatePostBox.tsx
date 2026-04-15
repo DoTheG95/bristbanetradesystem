@@ -67,6 +67,7 @@ export default function CreatePostBox({ userId, displayName, userCommunities, on
                 tcgplayer_id: String(c.tcgplayer_id ?? c.id),
                 tcgplayer_name: c.tcgplayer_name,
                 card_number: c.card_number,
+                rarity: c.rarity,
             }));
 
             const { error: postError } = await supabase
@@ -91,6 +92,7 @@ export default function CreatePostBox({ userId, displayName, userCommunities, on
                     tcgplayer_id: String(c.id ?? c.tcgplayer_id),
                     tcgplayer_name: c.tcgplayer_name,
                     card_number: c.card_number,
+                    rarity: c.rarity,
                     quantity: null,
                 }));
                 const { error: syncError } = await supabase.from('user_cards').insert(userCardRows);

@@ -130,6 +130,7 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
               tcgplayer_id: c.tcgplayer_id,
               card_name: c.name,
               card_number: cardNumber,
+              rarity: (c.rarity ?? '').toUpperCase(),
               combinedName: `${tcgName}  ${cardNumber}`.trim(),
               raw: c,
             };
@@ -258,6 +259,7 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
         tcgplayer_name: c.tcgplayer_name,
         tcgplayer_id: c.tcgplayer_id,
         card_number: c.card_number,
+        rarity: (c.rarity ?? '').toUpperCase(),
         combinedName: `${c.tcgplayer_name}  ${c.card_number}`.trim(),
         raw: c.raw,
       }));
@@ -467,7 +469,7 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
                       setSelectedItems((prev) => {
                         const exists = prev.some((p) => p.id === r.id);
                         if (exists) return prev;
-                        return [...prev, { id: r.id, combinedName: r.combinedName, tcgplayer_name: r.tcgplayer_name, card_number: r.card_number, raw: r.raw }];
+                        return [...prev, { id: r.id, combinedName: r.combinedName, tcgplayer_name: r.tcgplayer_name, card_number: r.card_number, rarity: r.rarity, raw: r.raw }];
                       });
                       setModalText(''); setResults([]); setSelectedCard(null);
                     }}
@@ -552,7 +554,7 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
                       style={{ width: '100%', aspectRatio: '1/1', objectFit: 'contain', borderRadius: 4, display: 'block' }}
                     />
 
-                    {/* Card number gary*/} 
+                    {/* Card name */} 
                     <div style={{ fontSize: 9, color: '#555', fontFamily: 'monospace', marginTop: 3, textAlign: 'center' }}>{card.card_name}</div>
 
                     {/* Rarity badge */}
