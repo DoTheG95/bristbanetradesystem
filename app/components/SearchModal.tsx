@@ -339,7 +339,6 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
                   ref={inputRef}
                   value={modalText}
                   onChange={(e) => { setModalText(e.target.value); setSelectedCard(null); }}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
                   placeholder="Type to search..."
                   style={{ width: '100%', padding: '9px 36px 9px 32px', background: '#18181e', border: '1px solid #2a2a32', borderRadius: 8, color: '#e8e6e0', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
                 />

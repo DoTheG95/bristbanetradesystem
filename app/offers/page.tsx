@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Navbar from '../components/Navbar';
-import { Trade, TradeItem, TradeMessage, TradeStatus } from '@/lib/tradetypes';
+import { Trade, TradeItem, TradeMessage, TradeStatus } from '@/lib/tradeTypes';
 import { Suspense } from 'react';
 
 type TabType = 'incoming' | 'outgoing' | 'history';

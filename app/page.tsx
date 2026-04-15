@@ -87,6 +87,10 @@ export default function Home() {
     setAccessCode('');
   };
 
+  const resetPassword = () => {
+
+  };
+
   if (checkingSession) return null;
 
   return (
@@ -179,6 +183,10 @@ export default function Home() {
             {loading ? 'Please wait…' : tab === 'login' ? 'Log in' : 'Create account'}
           </button>
 
+            
+          <p style={styles.passwordReset} onClick={resetPassword}>
+            Reset your password
+          </p>
         </div>
       </main>
     </div>
@@ -275,6 +283,11 @@ const styles: Record<string, React.CSSProperties> = {
   },
   fieldHint: {
     fontSize: '11px',
+    color: 'rgba(255,255,255,0.2)',
+    margin: '6px 0 0 2px',
+  },
+  passwordReset: {
+    fontSize: '14px',
     color: 'rgba(255,255,255,0.2)',
     margin: '6px 0 0 2px',
   },
