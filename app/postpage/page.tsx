@@ -226,6 +226,9 @@ export function PostCard({ post, currentUserId, communityNameMap, onDelete }: {
 
             <p style={{ color: '#d4d2cc', fontSize: 15, lineHeight: 1.5, marginBottom: 16, whiteSpace: 'pre-wrap' }}>
                 {post.content}
+                <button onClick={() => { setShowMatchResults(false); setOfferTarget(result); }} style={{ padding: '6px 14px', borderRadius: 7, border: 'none', background: '#4f46e5', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }} onMouseEnter={e => (e.currentTarget.style.background = '#6056f5')} onMouseLeave={e => (e.currentTarget.style.background = '#4f46e5')}>
+                    Make offer
+                </button>
             </p>
 
             {post.cards && post.cards.length > 0 && (
@@ -242,11 +245,12 @@ export function PostCard({ post, currentUserId, communityNameMap, onDelete }: {
             }}
             onClick={() => setOpenModal(post.cards)}
         >
-            {post.cards.slice(0, 3).map((card: any, i: number) => (
+            {post.cards.slice(0, 5).map((card: any, i: number) => (
                 <div
                     key={i}
                     style={{
                         display: 'flex',
+                        flexDirection: 'column',
                         alignItems: 'flex-start',
                         gap: 10,
                         padding: '10px 12px',
@@ -269,11 +273,21 @@ export function PostCard({ post, currentUserId, communityNameMap, onDelete }: {
                             flexShrink: 0
                         }}
                     />
-                {card.tcgplayer_name}
+                <span
+                    style={{
+                        width: 80,
+                        textAlign: 'center',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                    }}
+                >
+                    {card.tcgplayer_name}
+                </span>
                 </div>
             ))}
 
-            {post.cards.length > 3 && (
+            {post.cards.length > 5 && (
                 <div
                     style={{
                         width: 80,
@@ -288,7 +302,7 @@ export function PostCard({ post, currentUserId, communityNameMap, onDelete }: {
                         color: '#888'
                     }}
                 >
-                    +{post.cards.length - 3}
+                    +{post.cards.length - 5}
                 </div>
             )}
         </div>
@@ -341,6 +355,7 @@ export function PostCard({ post, currentUserId, communityNameMap, onDelete }: {
         </div>
     </div>
 )}
+
 
         </div>
     );

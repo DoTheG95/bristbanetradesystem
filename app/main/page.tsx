@@ -224,7 +224,7 @@ export default function MainPage() {
           tcgplayer_id,
           tcgplayer_name: item.tcgplayer_name ?? '',
           card_number:    item.card_number ?? item.raw?.id ?? '',
-          quantity:       null,
+          quantity: item.quantity ?? null,
           rarity:         item.raw?.rarity ?? item.rarity ?? null,
           created_at:     new Date().toISOString(),
         });
