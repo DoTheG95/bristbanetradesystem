@@ -224,12 +224,12 @@ export function PostCard({ post, currentUserId, communityNameMap, onDelete }: {
                 )}
             </div>
 
-            <p style={{ color: '#d4d2cc', fontSize: 15, lineHeight: 1.5, marginBottom: 16, whiteSpace: 'pre-wrap' }}>
+            {/* <p style={{ color: '#d4d2cc', fontSize: 15, lineHeight: 1.5, marginBottom: 16, whiteSpace: 'pre-wrap' }}>
                 {post.content}
                 <button onClick={() => { setShowMatchResults(false); setOfferTarget(result); }} style={{ padding: '6px 14px', borderRadius: 7, border: 'none', background: '#4f46e5', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }} onMouseEnter={e => (e.currentTarget.style.background = '#6056f5')} onMouseLeave={e => (e.currentTarget.style.background = '#4f46e5')}>
                     Make offer
                 </button>
-            </p>
+            </p> */}
 
             {post.cards && post.cards.length > 0 && (
     <>

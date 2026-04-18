@@ -229,6 +229,7 @@ export default function MainPage() {
           quantity: item.quantity ?? null,
           rarity:         item.raw?.rarity ?? item.rarity ?? null,
           created_at:     new Date().toISOString(),
+          price: item.price ?? null,
         });
       }
       const updated = { ...prev, [activeTab]: next };
