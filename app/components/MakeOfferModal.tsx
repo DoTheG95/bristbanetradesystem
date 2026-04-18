@@ -9,6 +9,7 @@ interface MatchedCard {
   tcgplayer_name: string;
   card_number: string | null;
   qty: number | null;
+  price: number | null;
 }
 
 interface Props {
@@ -16,26 +17,22 @@ interface Props {
   onClose: () => void;
   receiverId: string;
   receiverName: string;
-  // Cards from receiver's tradelist that I want
   theyHaveForMe: MatchedCard[];
 }
 
 export default function MakeOfferModal({ open, onClose, receiverId, receiverName, theyHaveForMe }: Props) {
-  const [myUserId, setMyUserId]         = useState<string | null>(null);
-  const [myTradelist, setMyTradelist]   = useState<MatchedCard[]>([]);
-  const [loadingMine, setLoadingMine]   = useState(false);
+  const [myUserId, setMyUserId]       = useState<string | null>(null);
+  const [myTradelist, setMyTradelist] = useState<MatchedCard[]>([]);
+  const [loadingMine, setLoadingMine] = useState(false);
 
-  // Cards I'm requesting from them
-  const [requesting, setRequesting]     = useState<DraftTradeItem[]>([]);
-  // Cards I'm offering from my side
-  const [offering, setOffering]         = useState<DraftTradeItem[]>([]);
+  const [requesting, setRequesting]   = useState<DraftTradeItem[]>([]);
+  const [offering, setOffering]       = useState<DraftTradeItem[]>([]);
 
-  const [message, setMessage]           = useState('');
-  const [meetDate, setMeetDate]         = useState('');
-  const [submitting, setSubmitting]     = useState(false);
-  const [error, setError]               = useState<string | null>(null);
+  const [message, setMessage]         = useState('');
+  const [meetDate, setMeetDate]       = useState('');
+  const [submitting, setSubmitting]   = useState(false);
+  const [error, setError]             = useState<string | null>(null);
 
-  // Card search for "my offer" section
   const [myCardSearch, setMyCardSearch] = useState('');
 
   useEffect(() => {
@@ -45,8 +42,7 @@ export default function MakeOfferModal({ open, onClose, receiverId, receiverName
       setMyUserId(session.user.id);
       loadMyTradelist(session.user.id);
     });
-    // Pre-select all their cards
-    setRequesting(theyHaveForMe.map(c => ({ ...c, offered_by: 'them' })));
+    setRequesting(theyHaveForMe.map(c => ({ ...c, offered_by: 'them', counter_price: null })));
     setOffering([]);
     setMessage('');
     setMeetDate('');
@@ -57,7 +53,7 @@ export default function MakeOfferModal({ open, onClose, receiverId, receiverName
     setLoadingMine(true);
     const { data } = await supabase
       .from('user_cards')
-      .select('tcgplayer_id, tcgplayer_name, card_number, quantity')
+      .select('tcgplayer_id, tcgplayer_name, card_number, quantity, price')
       .eq('user_id', uid)
       .eq('list_type', 'tradelist');
     setMyTradelist((data ?? []).map(c => ({
@@ -65,6 +61,7 @@ export default function MakeOfferModal({ open, onClose, receiverId, receiverName
       tcgplayer_name: c.tcgplayer_name ?? '',
       card_number:    c.card_number ?? null,
       qty:            c.quantity ?? null,
+      price:          c.price ?? null,
     })));
     setLoadingMine(false);
   };
@@ -73,7 +70,7 @@ export default function MakeOfferModal({ open, onClose, receiverId, receiverName
     setRequesting(prev => {
       const exists = prev.find(c => c.tcgplayer_id === card.tcgplayer_id);
       if (exists) return prev.filter(c => c.tcgplayer_id !== card.tcgplayer_id);
-      return [...prev, { ...card, offered_by: 'them' }];
+      return [...prev, { ...card, offered_by: 'them', counter_price: null }];
     });
   };
 
@@ -99,12 +96,20 @@ export default function MakeOfferModal({ open, onClose, receiverId, receiverName
     ));
   };
 
+  // Counter price the buyer proposes instead of the seller's asking price
+  const updateCounterPrice = (tcgplayer_id: string, raw: string) => {
+    const n = parseFloat(raw);
+    setRequesting(prev => prev.map(c =>
+      c.tcgplayer_id === tcgplayer_id
+        ? { ...c, counter_price: isNaN(n) || n < 0 ? null : parseFloat(n.toFixed(2)) }
+        : c
+    ));
+  };
 
   const handleSubmit = useCallback(async () => {
     if (!myUserId) return;
     if (requesting.length === 0) { setError('Select at least one card to request.'); return; }
 
-    // Validate requested qtys don't exceed what they actually have
     for (const req of requesting) {
       if (req.qty == null) continue;
       const source = theyHaveForMe.find(c => c.tcgplayer_id === req.tcgplayer_id);
@@ -114,7 +119,6 @@ export default function MakeOfferModal({ open, onClose, receiverId, receiverName
       }
     }
 
-    // Validate offered qtys don't exceed what you actually have
     for (const off of offering) {
       if (off.qty == null) continue;
       const source = myTradelist.find(c => c.tcgplayer_id === off.tcgplayer_id);
@@ -128,7 +132,6 @@ export default function MakeOfferModal({ open, onClose, receiverId, receiverName
     setError(null);
 
     try {
-      // 1. Create trade record
       const { data: trade, error: tradeErr } = await supabase
         .from('trades')
         .insert({
@@ -143,9 +146,7 @@ export default function MakeOfferModal({ open, onClose, receiverId, receiverName
 
       const tradeId = trade.id;
 
-      // 2. Insert trade items
       const items = [
-        // Cards I'm requesting from them
         ...requesting.map(c => ({
           trade_id:       tradeId,
           offered_by:     receiverId,
@@ -153,8 +154,9 @@ export default function MakeOfferModal({ open, onClose, receiverId, receiverName
           tcgplayer_name: c.tcgplayer_name,
           card_number:    c.card_number,
           qty:            c.qty,
+          // Store the seller's asking price and buyer's counter (if any)
+          price:          (c as any).counter_price ?? c.price ?? null,
         })),
-        // Cards I'm offering to them
         ...offering.map(c => ({
           trade_id:       tradeId,
           offered_by:     myUserId,
@@ -162,13 +164,13 @@ export default function MakeOfferModal({ open, onClose, receiverId, receiverName
           tcgplayer_name: c.tcgplayer_name,
           card_number:    c.card_number,
           qty:            c.qty,
+          price:          c.price ?? null,
         })),
       ];
 
       const { error: itemsErr } = await supabase.from('trade_items').insert(items);
       if (itemsErr) throw itemsErr;
 
-      // 3. Insert opening message if provided
       if (message.trim()) {
         const { error: msgErr } = await supabase.from('trade_messages').insert({
           trade_id:  tradeId,
@@ -178,7 +180,6 @@ export default function MakeOfferModal({ open, onClose, receiverId, receiverName
         if (msgErr) throw msgErr;
       }
 
-      // 4. Notify receiver
       await supabase.from('notifications').insert({
         user_id:  receiverId,
         trade_id: tradeId,
@@ -239,8 +240,10 @@ export default function MakeOfferModal({ open, onClose, receiverId, receiverName
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {theyHaveForMe.map(card => {
-                const selected = !!requesting.find(c => c.tcgplayer_id === card.tcgplayer_id);
-                const draft    = requesting.find(c => c.tcgplayer_id === card.tcgplayer_id);
+                const selected     = !!requesting.find(c => c.tcgplayer_id === card.tcgplayer_id);
+                const draft        = requesting.find(c => c.tcgplayer_id === card.tcgplayer_id);
+                const counterPrice = (draft as any)?.counter_price ?? null;
+
                 return (
                   <div
                     key={card.tcgplayer_id}
@@ -252,11 +255,20 @@ export default function MakeOfferModal({ open, onClose, receiverId, receiverName
                     }}
                     onClick={() => toggleRequesting(card)}
                   >
-                    <img src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`} alt={card.tcgplayer_name} style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }} />
+                    {/* Card image */}
+                    <img
+                      src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`}
+                      alt={card.tcgplayer_name}
+                      style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
+                    />
+
+                    {/* Card name + number */}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 500, color: '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.tcgplayer_name}</div>
                       <div style={{ fontSize: 10, color: '#444', fontFamily: 'monospace' }}>{card.card_number}</div>
                     </div>
+
+                    {/* Qty input when selected */}
                     {selected && (
                       <input
                         type="number" min={1}
@@ -264,9 +276,39 @@ export default function MakeOfferModal({ open, onClose, receiverId, receiverName
                         onClick={e => e.stopPropagation()}
                         onChange={e => updateRequestQty(card.tcgplayer_id, e.target.value)}
                         placeholder="qty"
-                        style={{ width: 52, padding: '3px 6px', background: '#1e1e28', border: '1px solid #3a3a50', borderRadius: 5, color: '#d4d2cc', fontSize: 12, textAlign: 'center', outline: 'none' }}
+                        style={{ width: 48, padding: '3px 6px', background: '#1e1e28', border: '1px solid #3a3a50', borderRadius: 5, color: '#d4d2cc', fontSize: 12, textAlign: 'center', outline: 'none', flexShrink: 0 }}
                       />
                     )}
+
+                    {/* Asking price + counter offer */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, flexShrink: 0 }}>
+                      {/* Seller's asking price */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ fontSize: 10, color: '#444' }}>asking</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: card.price != null ? '#4ade80' : '#333' }}>
+                          {card.price != null ? `$${card.price.toFixed(2)}` : '—'}
+                        </span>
+                      </div>
+                      {/* Counter price input — only shown when row is selected */}
+                      {selected && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ fontSize: 10, color: '#444' }}>counter</span>
+                          <div style={{ position: 'relative' }}>
+                            <span style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', fontSize: 10, color: '#f59e0b', pointerEvents: 'none' }}>$</span>
+                            <input
+                              type="number" min={0} step={0.01}
+                              value={counterPrice ?? ''}
+                              placeholder="—"
+                              onClick={e => e.stopPropagation()}
+                              onChange={e => updateCounterPrice(card.tcgplayer_id, e.target.value)}
+                              style={{ width: 64, padding: '3px 5px 3px 14px', background: '#1a1810', border: '1px solid #50401a', borderRadius: 5, color: '#f59e0b', fontSize: 12, outline: 'none' }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Checkbox */}
                     <div style={{ width: 16, height: 16, borderRadius: 4, border: `1.5px solid ${selected ? '#4f46e5' : '#2a2a32'}`, background: selected ? '#4f46e5' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       {selected && <span style={{ color: '#fff', fontSize: 10, lineHeight: 1 }}>✓</span>}
                     </div>
@@ -316,11 +358,21 @@ export default function MakeOfferModal({ open, onClose, receiverId, receiverName
                         }}
                         onClick={() => toggleOffering(card)}
                       >
-                        <img src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`} alt={card.tcgplayer_name} style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }} />
+                        <img
+                          src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`}
+                          alt={card.tcgplayer_name}
+                          style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
+                        />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 12, fontWeight: 500, color: '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.tcgplayer_name}</div>
                           <div style={{ fontSize: 10, color: '#444', fontFamily: 'monospace' }}>{card.card_number}</div>
                         </div>
+                        {/* Show your asking price */}
+                        {card.price != null && (
+                          <span style={{ fontSize: 11, fontWeight: 600, color: '#4ade80', flexShrink: 0 }}>
+                            ${card.price.toFixed(2)}
+                          </span>
+                        )}
                         {selected && (
                           <input
                             type="number" min={1}
@@ -366,7 +418,11 @@ export default function MakeOfferModal({ open, onClose, receiverId, receiverName
             />
           </section>
 
-          {error && <div style={{ fontSize: 12, color: '#c0392b', padding: '8px 12px', background: '#1a0a0a', borderRadius: 7, border: '1px solid #3a1a1a' }}>{error}</div>}
+          {error && (
+            <div style={{ fontSize: 12, color: '#c0392b', padding: '8px 12px', background: '#1a0a0a', borderRadius: 7, border: '1px solid #3a1a1a' }}>
+              {error}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -376,7 +432,10 @@ export default function MakeOfferModal({ open, onClose, receiverId, receiverName
             {offering.length > 0 ? `, ${offering.length} offered` : ''}
           </span>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={onClose} style={{ padding: '8px 16px', borderRadius: 7, border: '1px solid #2a2a32', background: 'transparent', color: '#888', fontSize: 13, cursor: 'pointer' }}>
+            <button
+              onClick={onClose}
+              style={{ padding: '8px 16px', borderRadius: 7, border: '1px solid #2a2a32', background: 'transparent', color: '#888', fontSize: 13, cursor: 'pointer' }}
+            >
               Cancel
             </button>
             <button

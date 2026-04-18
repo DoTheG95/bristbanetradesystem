@@ -22,6 +22,7 @@ interface CardEntry {
   quantity: number | null;
   rarity: string | null;
   created_at?: string;
+  price: number | null;
 }
 
 interface PopoverState {
@@ -118,6 +119,7 @@ export default function MainPage() {
             quantity:       c.quantity ?? null,
             rarity:         c.rarity ?? null,
             created_at:     c.created_at ?? '',
+            price: c.price ?? null,
           })),
         }));
       }
@@ -148,7 +150,7 @@ export default function MainPage() {
           const rows = updatedLists[t].map(c => ({
             user_id: userId, list_type: t, tcgplayer_id: c.tcgplayer_id,
             tcgplayer_name: c.tcgplayer_name, card_number: c.card_number,
-            quantity: c.quantity, rarity: c.rarity,
+            quantity: c.quantity, rarity: c.rarity, price:c.price
           }));
           if (rows.length > 0) {
             const { error: insertError } = await supabase.from('user_cards').insert(rows);
@@ -261,6 +263,17 @@ export default function MainPage() {
     const n = parseInt(raw, 10);
     setLists(prev => {
       const updated = { ...prev, [tab]: prev[tab].map(c => c.id === id ? { ...c, quantity: isNaN(n) || n < 1 ? null : n } : c) };
+      triggerAutoSave(tab, updated);
+      return updated;
+    });
+  }, [triggerAutoSave]);
+
+  const updatePrice = useCallback((tab: ListType, id: string, raw: string) => {
+    const n = parseFloat(raw);
+    setLists(prev => {
+      const updated = { ...prev, [tab]: prev[tab].map(c =>
+        c.id === id ? { ...c, price: isNaN(n) || n < 0 ? null : parseFloat(n.toFixed(2)) } : c
+      )};
       triggerAutoSave(tab, updated);
       return updated;
     });
@@ -441,7 +454,7 @@ export default function MainPage() {
         {/* ── Card table ── */}
         <div style={{ background: '#111115', border: '1px solid #1e1e24', borderRadius: 12, overflow: 'hidden', marginBottom: 12 }}>
           {/* Header */}
-          <div style={{ display: 'grid', gridTemplateColumns: '36px 150px 1fr 60px 90px 36px', gap: 8, padding: '10px 16px', borderBottom: '1px solid #1e1e24', background: '#0e0e12', alignItems: 'center' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '36px 150px 1fr 60px 90px 90px 36px', gap: 8, padding: '10px 16px', borderBottom: '1px solid #1e1e24', background: '#0e0e12', alignItems: 'center' }}>
             <div onClick={toggleSelectAll} style={{ width: 16, height: 16, borderRadius: 4, border: `1.5px solid ${allPageSelected ? '#4f46e5' : '#2a2a32'}`, background: allPageSelected ? '#4f46e5' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
               {allPageSelected && <span style={{ color: '#fff', fontSize: 9, lineHeight: 1 }}>✓</span>}
               {somePagePartial && <span style={{ color: '#4f46e5', fontSize: 11, lineHeight: 1 }}>–</span>}
@@ -481,7 +494,7 @@ export default function MainPage() {
               return (
                 <div
                   key={card.id}
-                  style={{ display: 'grid', gridTemplateColumns: '36px 150px 1fr 60px 90px 36px', gap: 8, alignItems: 'center', padding: '10px 16px', borderBottom: i < pageCards.length - 1 ? '1px solid #18181e' : 'none', transition: 'background 0.1s', background: isSelected ? '#16162a' : 'transparent' }}
+                  style={{ display: 'grid', gridTemplateColumns: '36px 150px 1fr 60px 90px 90px 36px', gap: 8, alignItems: 'center', padding: '10px 16px', borderBottom: i < pageCards.length - 1 ? '1px solid #18181e' : 'none', transition: 'background 0.1s', background: isSelected ? '#16162a' : 'transparent' }}
                   onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = '#141418'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = isSelected ? '#16162a' : 'transparent'; }}
                 >
@@ -510,6 +523,17 @@ export default function MainPage() {
                     placeholder="—"
                     style={{ width: '100%', padding: '4px 8px', background: '#18181e', border: '1px solid #2a2a32', borderRadius: 6, color: '#d4d2cc', fontSize: 13, textAlign: 'center', outline: 'none' }}
                   />
+
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#4ade80', pointerEvents: 'none' }}>$</span>
+              <input
+                type="number" min={0} step={0.01}
+                value={card.price ?? ''}
+                onChange={e => updatePrice(activeTab, card.id, e.target.value)}
+                placeholder="—"
+                style={{ width: '100%', padding: '4px 6px 4px 18px', background: card.price != null ? '#0e1a0e' : '#18181e', border: `1px solid ${card.price != null ? '#1a3a1a' : '#2a2a32'}`, borderRadius: 6, color: '#4ade80', fontSize: 13, outline: 'none' }}
+              />
+            </div>
                   <button
                     onClick={() => removeCard(activeTab, card.id)}
                     style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid #2a2a32', background: 'transparent', color: '#444', cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}

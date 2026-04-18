@@ -72,6 +72,8 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
   const [bulkSelected, setBulkSelected]     = useState<Set<string>>(new Set());
   const packInputRef                        = useRef<HTMLInputElement>(null);
 
+  const [bulkQtyInput, setBulkQtyInput] = useState<string>('');
+
   // Reset on close
   useEffect(() => {
     if (open) {
@@ -234,6 +236,29 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
         return { ...p, quantity: p.quantity - 1 };
       })
     );
+  };
+
+  const setAllQty = (value: number | null) => {
+    setSelectedItems(prev =>
+      prev.map(p => ({
+        ...p,
+        quantity: value,
+      }))
+    );
+  };
+
+  const handleBulkQtyChange = (val: string) => {
+    setBulkQtyInput(val);
+  
+    if (val.trim() === '') {
+      setAllQty(null); // reset to "unset"
+      return;
+    }
+  
+    const num = Number(val);
+    if (!Number.isNaN(num) && num >= 0) {
+      setAllQty(num);
+    }
   };
 
 
@@ -459,6 +484,22 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
                           onMouseEnter={e => (e.currentTarget.style.color = '#e8e6e0')}
                           onMouseLeave={e => (e.currentTarget.style.color = '#555')}
                         >−</button>
+                        <input
+                          value={bulkQtyInput}
+                          onChange={e => handleBulkQtyChange(e.target.value)}
+                          placeholder="Set"
+                          style={{
+                            width: 40,
+                            height: 26,
+                            textAlign: 'center',
+                            background: '#18181e',
+                            border: '1px solid #2a2a32',
+                            borderRadius: 6,
+                            color: '#d4d2cc',
+                            fontSize: 12,
+                            outline: 'none',
+                          }}
+                        />
                         <button
                           onClick={incrementAllQty}
                           style={{ width: 28, height: 26, background: 'transparent', border: 'none', color: '#555', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
