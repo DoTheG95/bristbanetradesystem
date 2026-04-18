@@ -142,7 +142,7 @@ export default function LocalArea() {
 
             const { data: cards, error: cardErr } = await supabase
                 .from('user_cards')
-                .select('user_id, tcgplayer_id, tcgplayer_name, card_number, quantity')
+                .select('user_id, tcgplayer_id, tcgplayer_name, card_number, quantity, price')
                 .eq('list_type', listType)
                 .in('user_id', memberIds);
             if (cardErr) throw cardErr;

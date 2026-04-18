@@ -13,6 +13,7 @@ export interface MatchedCard {
   card_number: string | null;
   qty: number | null;
   rarity: string | null;
+  price: number | null;
 }
 
 export interface MatchResult {
@@ -131,8 +132,8 @@ export default function MatchModal({ open, onClose, userId, onResults }: Props) 
     try {
       // 1. Load my own lists (both directions needed)
       const [wishRes, tradeRes] = await Promise.all([
-        supabase.from('user_cards').select('tcgplayer_id, tcgplayer_name, card_number, quantity, rarity').eq('user_id', userId).eq('list_type', 'wishlist'),
-        supabase.from('user_cards').select('tcgplayer_id, tcgplayer_name, card_number, quantity, rarity').eq('user_id', userId).eq('list_type', 'tradelist'),
+        supabase.from('user_cards').select('tcgplayer_id, tcgplayer_name, card_number, quantity, rarity, price').eq('user_id', userId).eq('list_type', 'wishlist'),
+        supabase.from('user_cards').select('tcgplayer_id, tcgplayer_name, card_number, quantity, rarity, price').eq('user_id', userId).eq('list_type', 'tradelist'),
       ]);
 
       const myWishlist  = wishRes.data  ?? [];
@@ -174,7 +175,7 @@ export default function MatchModal({ open, onClose, userId, onResults }: Props) 
       // 3. Parallel queries: who has my wishlist cards in their tradelist, and who wants my tradelist cards
       let theyHaveQ = supabase
         .from('user_cards')
-        .select('user_id, tcgplayer_id, tcgplayer_name, card_number, quantity, rarity')
+        .select('user_id, tcgplayer_id, tcgplayer_name, card_number, quantity, rarity, price')
         .eq('list_type', 'tradelist')
         .neq('user_id', userId);
 
@@ -239,6 +240,7 @@ export default function MatchModal({ open, onClose, userId, onResults }: Props) 
           card_number:    row.card_number ?? '',
           qty:            row.quantity ?? null,
           rarity:         row.rarity ?? null,
+          price: row.price != null ? parseFloat(row.price) : null,
         });
       }
       for (const row of theyWant) {
@@ -248,6 +250,7 @@ export default function MatchModal({ open, onClose, userId, onResults }: Props) 
           card_number:    row.card_number ?? '',
           qty:            row.quantity ?? null,
           rarity:         row.rarity ?? null,
+          price:         row.price ?? null,
         });
       }
 

@@ -59,5 +59,5 @@ export interface DraftTradeItem {
   card_number: string | null;
   qty: number | null;
   offered_by: 'me' | 'them'; // UI only
-  counter_price: number | null;
+  price: number | null;
 }
