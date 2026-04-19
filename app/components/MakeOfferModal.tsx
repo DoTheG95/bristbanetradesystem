@@ -60,21 +60,29 @@ export default function MakeOfferModal({ open, onClose, receiverId, receiverName
   }, [open]);
 
   const loadMyTradelist = async (uid: string) => {
-    setLoadingMine(true);
-    const { data } = await supabase
-      .from('user_cards')
-      .select('tcgplayer_id, tcgplayer_name, card_number, quantity, price')
-      .eq('user_id', uid)
-      .eq('list_type', 'tradelist');
-    setMyTradelist((data ?? []).map(c => ({
-      tcgplayer_id:   String(c.tcgplayer_id),
-      tcgplayer_name: c.tcgplayer_name ?? '',
-      card_number:    c.card_number ?? null,
-      qty:            c.quantity ?? null,
-      price:          c.price != null ? parseFloat(c.price) : null,
-    })));
+  setLoadingMine(true);
+
+  const { data, error } = await supabase.rpc('get_my_tradelist', {
+    p_user_id: uid,
+  });
+
+  if (error) {
+    setError(error.message);
     setLoadingMine(false);
-  };
+    return;
+  }
+
+  setMyTradelist((data ?? []).map((c: any) => ({
+    tcgplayer_id: c.tcgplayer_id,
+    tcgplayer_name: c.tcgplayer_name ?? '',
+    card_number: c.card_number ?? null,
+    qty: c.qty ?? null,
+    price: c.price != null ? parseFloat(c.price) : null,
+  })));
+
+  setLoadingMine(false);
+};
+
 
   const toggleRequesting = (card: MatchedCard) => {
     setRequesting(prev => {
@@ -124,115 +132,76 @@ export default function MakeOfferModal({ open, onClose, receiverId, receiverName
     ));
   };
 
-  const handleSubmit = useCallback(async () => {
-    if (!myUserId) return;
-    if (requesting.length === 0) { setError('Select at least one card to request.'); return; }
+const handleSubmit = useCallback(async () => {
+  if (!myUserId) return;
+  if (requesting.length === 0) {
+    setError('Select at least one card to request.');
+    return;
+  }
 
-    // Qty cap validation
-    for (const req of requesting) {
-      if (req.qty == null) continue;
-      const source = theyHaveForMe.find(c => c.tcgplayer_id === req.tcgplayer_id);
-      if (source && source.qty != null && req.qty > source.qty) {
-        setError(`You can only request up to ${source.qty}× ${source.tcgplayer_name}.`);
-        return;
+  setSubmitting(true);
+  setError(null);
+
+  try {
+    const items = [
+      ...requesting.map(c => ({
+        offered_by: receiverId,
+        tcgplayer_id: c.tcgplayer_id,
+        tcgplayer_name: c.tcgplayer_name,
+        card_number: c.card_number,
+        qty: c.qty,
+        price:
+          c.counter_price !== null && c.counter_price !== undefined
+            ? c.counter_price
+            : c.price ?? null,
+      })),
+      ...offering.map(c => ({
+        offered_by: myUserId,
+        tcgplayer_id: c.tcgplayer_id,
+        tcgplayer_name: c.tcgplayer_name,
+        card_number: c.card_number,
+        qty: c.qty,
+        price: c.price ?? null,
+      })),
+    ];
+
+    const { data, error } = await supabase.rpc('create_trade_with_items', {
+      p_sender: myUserId,
+      p_receiver: receiverId,
+      p_meet_date: meetDate || null,
+      p_message: message || null,
+      p_items: items,
+    });
+
+    if (error) throw error;
+
+    if (!data.success) {
+      if (data.error === 'duplicate_trade') {
+        setError('You already have a pending trade for one of these cards.');
+      } else {
+        setError('Failed to create trade.');
       }
-    }
-    for (const off of offering) {
-      if (off.qty == null) continue;
-      const source = myTradelist.find(c => c.tcgplayer_id === off.tcgplayer_id);
-      if (source && source.qty != null && off.qty > source.qty) {
-        setError(`You only have ${source.qty}× ${off.tcgplayer_name} to offer.`);
-        return;
-      }
-    }
-
-    setSubmitting(true);
-    setError(null);
-
-    try {
-      // ── Duplicate offer check ────────────────────────────────────────────
-      const { data: existing } = await supabase
-        .from('trades')
-        .select('id')
-        .eq('sender_id', myUserId)
-        .eq('receiver_id', receiverId)
-        .eq('status', 'pending')
-        .maybeSingle();
-
-      if (existing) {
-        setError('You already have a pending offer for this card. Resolve that one first.');
-        setSubmitting(false);
-        return;
-      }
-
-      // ── Create trade ─────────────────────────────────────────────────────
-      const { data: trade, error: tradeErr } = await supabase
-        .from('trades')
-        .insert({
-          sender_id:   myUserId,
-          receiver_id: receiverId,
-          status:      'pending',
-          meet_date:   meetDate || null,
-        })
-        .select('id')
-        .single();
-      if (tradeErr) throw tradeErr;
-
-      const tradeId = trade.id;
-
-      // ── Insert trade items ───────────────────────────────────────────────
-      // For requested cards: save counter_price if the user edited it,
-      // otherwise save the seller's original asking price.
-      const items = [
-        ...requesting.map(c => ({
-          trade_id:       tradeId,
-          offered_by:     receiverId,
-          tcgplayer_id:   c.tcgplayer_id,
-          tcgplayer_name: c.tcgplayer_name,
-          card_number:    c.card_number,
-          qty:            c.qty,
-          price:          c.counter_price !== null && c.counter_price !== undefined
-                            ? c.counter_price      // buyer's counter offer
-                            : (c.price ?? null),   // seller's original asking price
-        })),
-        ...offering.map(c => ({
-          trade_id:       tradeId,
-          offered_by:     myUserId,
-          tcgplayer_id:   c.tcgplayer_id,
-          tcgplayer_name: c.tcgplayer_name,
-          card_number:    c.card_number,
-          qty:            c.qty,
-          price:          c.price ?? null,
-        })),
-      ];
-
-      const { error: itemsErr } = await supabase.from('trade_items').insert(items);
-      if (itemsErr) throw itemsErr;
-
-      // ── Opening message ──────────────────────────────────────────────────
-      if (message.trim()) {
-        const { error: msgErr } = await supabase.from('trade_messages').insert({
-          trade_id:  tradeId,
-          sender_id: myUserId,
-          message:   message.trim(),
-        });
-        if (msgErr) throw msgErr;
-      }
-
-      // ── Notify receiver ──────────────────────────────────────────────────
-      await supabase.from('notifications').insert({
-        user_id:  receiverId,
-        trade_id: tradeId,
-        type:     'offer_received',
-      });
-
-      onClose();
-    } catch (err: any) {
-      setError(err.message ?? 'Something went wrong. Please try again.');
-    } finally {
       setSubmitting(false);
+      return;
     }
-  }, [myUserId, receiverId, requesting, offering, message, meetDate, myTradelist, theyHaveForMe, onClose]);
+
+    onClose();
+
+  } catch (err: any) {
+    setError(err.message ?? 'Something went wrong.');
+  } finally {
+    setSubmitting(false);
+  }
+}, [
+  myUserId,
+  receiverId,
+  requesting,
+  offering,
+  message,
+  meetDate,
+  onClose
+]);
+
 
   if (!open) return null;
 
