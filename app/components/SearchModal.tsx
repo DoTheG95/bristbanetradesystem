@@ -278,7 +278,7 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
       tcgplayer_id:   item.tcgplayer_id,
       tcgplayer_name: item.tcgplayer_name,
       card_number:    item.card_number,
-      rarity:         item.rarity,
+      rarity:         (item.rarity ?? '').toUpperCase(),
       combinedName:   item.combinedName,
       quantity:       item.quantity,
       raw:            item.raw,

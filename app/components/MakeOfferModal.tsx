@@ -160,7 +160,7 @@ export default function MakeOfferModal({ open, onClose, receiverId, receiverName
         .maybeSingle();
 
       if (existing) {
-        setError('You already have a pending offer with this trader. Resolve that one first.');
+        setError('You already have a pending offer for this card. Resolve that one first.');
         setSubmitting(false);
         return;
       }

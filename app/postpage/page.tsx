@@ -4,23 +4,40 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import Navbar from '../components/Navbar';
 import CreatePostBox from '../components/CreatePostBox';
+import MakeOfferModal from '../components/MakeOfferModal';
 
 interface Community {
     id: number;
     name: string;
 }
 
-type FilterMode = 'all' | 'public' | number; // number = community id
+type FilterMode = 'all' | 'public' | number;
+
+// Shape MakeOfferModal expects
+interface MatchedCard {
+    tcgplayer_id: string;
+    tcgplayer_name: string;
+    card_number: string | null;
+    qty: number | null;
+    price: number | null;
+}
+
+interface OfferTarget {
+    receiverId: string;
+    receiverName: string;
+    cards: MatchedCard[];
+}
 
 export default function PostPage() {
-    const [userId, setUserId] = useState<string | null>(null);
-    const [displayName, setDisplayName] = useState<string | null>(null);
-    const [posts, setPosts] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [searchText, setSearchText] = useState('');
-    const [filterMode, setFilterMode] = useState<FilterMode>('all');
+    const [userId, setUserId]               = useState<string | null>(null);
+    const [displayName, setDisplayName]     = useState<string | null>(null);
+    const [posts, setPosts]                 = useState<any[]>([]);
+    const [loading, setLoading]             = useState(true);
+    const [searchText, setSearchText]       = useState('');
+    const [filterMode, setFilterMode]       = useState<FilterMode>('all');
     const [userCommunities, setUserCommunities] = useState<Community[]>([]);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const [offerTarget, setOfferTarget]     = useState<OfferTarget | null>(null);
+    const inputRef                          = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -42,15 +59,12 @@ export default function PostPage() {
             .from('user_communities')
             .select('community_id')
             .eq('user_id', uid);
-
         const ids = (ucData ?? []).map((r: any) => r.community_id);
         if (ids.length === 0) return;
-
         const { data: cData } = await supabase
             .from('communities')
             .select('id, name')
             .in('id', ids);
-
         setUserCommunities(cData ?? []);
     };
 
@@ -60,7 +74,6 @@ export default function PostPage() {
             .from('posts')
             .select('*')
             .order('created_at', { ascending: false });
-
         if (error) console.error('Fetch error:', error.message);
         setPosts(data ?? []);
         setLoading(false);
@@ -77,7 +90,23 @@ export default function PostPage() {
         else fetchPosts();
     };
 
-    // Build a name map for community IDs so PostCard can label them
+    // Open MakeOfferModal from a post — map post.cards → MatchedCard[]
+    const handleMakeOffer = useCallback((post: any) => {
+        if (!post.user_id || post.user_id === userId) return;
+        const cards: MatchedCard[] = (post.cards ?? []).map((c: any) => ({
+            tcgplayer_id:   String(c.tcgplayer_id ?? ''),
+            tcgplayer_name: c.tcgplayer_name ?? '',
+            card_number:    c.card_number ?? null,
+            qty:            c.quantity ?? null,
+            price:          c.price != null ? parseFloat(c.price) : null,
+        }));
+        setOfferTarget({
+            receiverId:   post.user_id,
+            receiverName: post.display_name ?? 'Trader',
+            cards,
+        });
+    }, [userId]);
+
     const communityNameMap: Record<number, string> = {};
     userCommunities.forEach(c => { communityNameMap[c.id] = c.name; });
 
@@ -85,7 +114,6 @@ export default function PostPage() {
         .filter(post => {
             if (filterMode === 'all') return true;
             if (filterMode === 'public') return post.is_public === true;
-            // specific community id
             return Array.isArray(post.community_ids) && post.community_ids.includes(filterMode);
         })
         .filter(post => {
@@ -113,21 +141,16 @@ export default function PostPage() {
                     onPostCreated={fetchPosts}
                 />
 
-                {/* ── Filter tabs ── */}
+                {/* Filter tabs */}
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
                     {(['all', 'public', ...userCommunities.map(c => c.id)] as FilterMode[]).map(mode => {
-                        const label = mode === 'all' ? 'All' : mode === 'public' ? 'Public' : userCommunities.find(c => c.id === mode)?.name ?? '';
+                        const label  = mode === 'all' ? 'All' : mode === 'public' ? 'Public' : userCommunities.find(c => c.id === mode)?.name ?? '';
                         const active = filterMode === mode;
                         return (
                             <button
                                 key={String(mode)}
                                 onClick={() => setFilterMode(mode)}
-                                style={{
-                                    padding: '5px 14px', borderRadius: 99, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid', transition: 'all 0.15s',
-                                    background: active ? '#1e1e32' : 'transparent',
-                                    borderColor: active ? '#4f46e5' : '#2a2a32',
-                                    color: active ? '#818cf8' : '#555',
-                                }}
+                                style={{ padding: '5px 14px', borderRadius: 99, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid', transition: 'all 0.15s', background: active ? '#1e1e32' : 'transparent', borderColor: active ? '#4f46e5' : '#2a2a32', color: active ? '#818cf8' : '#555' }}
                             >
                                 {label}
                             </button>
@@ -135,7 +158,7 @@ export default function PostPage() {
                     })}
                 </div>
 
-                {/* ── Search ── */}
+                {/* Search */}
                 <div style={{ position: 'relative', marginBottom: 20, display: 'flex', alignItems: 'center' }}>
                     <svg style={{ position: 'absolute', left: 10, width: 14, height: 14, color: '#444', flexShrink: 0, pointerEvents: 'none' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -143,13 +166,13 @@ export default function PostPage() {
                     <input
                         ref={inputRef}
                         value={searchText}
-                        onChange={(e) => setSearchText(e.target.value)}
+                        onChange={e => setSearchText(e.target.value)}
                         placeholder="Search posts, cards, or users..."
                         style={{ width: '100%', padding: '9px 36px 9px 32px', background: '#18181e', border: '1px solid #2a2a32', borderRadius: 8, color: '#e8e6e0', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
                     />
                 </div>
 
-                {/* ── Feed ── */}
+                {/* Feed */}
                 {loading ? (
                     <div style={{ textAlign: 'center', color: '#444', padding: '40px 0', fontSize: 13 }}>Loading posts…</div>
                 ) : filteredPosts.length === 0 ? (
@@ -163,26 +186,37 @@ export default function PostPage() {
                                 currentUserId={userId}
                                 communityNameMap={communityNameMap}
                                 onDelete={handleDeletePost}
+                                onMakeOffer={handleMakeOffer}
                             />
                         ))}
                     </div>
                 )}
             </div>
+
+            {/* Make Offer Modal */}
+            {offerTarget && userId && (
+                <MakeOfferModal
+                    open={!!offerTarget}
+                    onClose={() => setOfferTarget(null)}
+                    receiverId={offerTarget.receiverId}
+                    receiverName={offerTarget.receiverName}
+                    theyHaveForMe={offerTarget.cards}
+                />
+            )}
         </div>
     );
 }
 
-
-/* ── Shared PostCard ── */
-export function PostCard({ post, currentUserId, communityNameMap, onDelete }: {
+/* ── PostCard ── */
+export function PostCard({ post, currentUserId, communityNameMap, onDelete, onMakeOffer }: {
     post: any;
     currentUserId: string | null;
     communityNameMap: Record<number, string>;
     onDelete: (id: string) => void;
+    onMakeOffer: (post: any) => void;
 }) {
     const [openModal, setOpenModal] = useState<any[] | null>(null);
 
-    // Build the audience label e.g. "Public / Community A / Community B"
     const audienceParts: string[] = [];
     if (post.is_public) audienceParts.push('Public');
     if (Array.isArray(post.community_ids)) {
@@ -193,8 +227,12 @@ export function PostCard({ post, currentUserId, communityNameMap, onDelete }: {
     }
     const audienceLabel = audienceParts.join(' / ') || 'Unknown';
 
+    // Don't show Make Offer on own posts or posts with no cards
+    const canOffer = currentUserId && post.user_id !== currentUserId && post.cards?.length > 0;
+
     return (
         <div style={{ background: '#111115', border: '1px solid #1e1e24', borderRadius: 12, padding: 20 }}>
+            {/* Post header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -210,153 +248,104 @@ export function PostCard({ post, currentUserId, communityNameMap, onDelete }: {
                             </span>
                         )}
                     </div>
-                    {/* Audience label */}
                     <span style={{ fontSize: 11, color: '#555' }}>{audienceLabel}</span>
                 </div>
 
-                {currentUserId === post.user_id && (
-                    <button
-                        onClick={() => onDelete(post.id)}
-                        style={{ background: 'transparent', border: 'none', color: '#444', cursor: 'pointer', fontSize: 18, padding: '0 4px' }}
-                        onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-                        onMouseLeave={e => (e.currentTarget.style.color = '#444')}
-                    >×</button>
-                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {/* Make Offer button */}
+                    {canOffer && (
+                        <button
+                            onClick={() => onMakeOffer(post)}
+                            style={{ padding: '5px 14px', borderRadius: 7, border: 'none', background: '#4f46e5', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'background 0.15s' }}
+                            onMouseEnter={e => (e.currentTarget.style.background = '#6056f5')}
+                            onMouseLeave={e => (e.currentTarget.style.background = '#4f46e5')}
+                        >
+                            Make Offer
+                        </button>
+                    )}
+
+                    {currentUserId === post.user_id && (
+                        <button
+                            onClick={() => onDelete(post.id)}
+                            style={{ background: 'transparent', border: 'none', color: '#444', cursor: 'pointer', fontSize: 18, padding: '0 4px' }}
+                            onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+                            onMouseLeave={e => (e.currentTarget.style.color = '#444')}
+                        >×</button>
+                    )}
+                </div>
             </div>
 
-            {/* <p style={{ color: '#d4d2cc', fontSize: 15, lineHeight: 1.5, marginBottom: 16, whiteSpace: 'pre-wrap' }}>
+            {/* Content */}
+            <p style={{ color: '#d4d2cc', fontSize: 15, lineHeight: 1.5, marginBottom: post.cards?.length > 0 ? 0 : 0, whiteSpace: 'pre-wrap' }}>
                 {post.content}
-                <button onClick={() => { setShowMatchResults(false); setOfferTarget(result); }} style={{ padding: '6px 14px', borderRadius: 7, border: 'none', background: '#4f46e5', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }} onMouseEnter={e => (e.currentTarget.style.background = '#6056f5')} onMouseLeave={e => (e.currentTarget.style.background = '#4f46e5')}>
-                    Make offer
-                </button>
-            </p> */}
+            </p>
 
+            {/* Card previews */}
             {post.cards && post.cards.length > 0 && (
-    <>
-        {/* Preview Row */}
-        <div
-            style={{
-                display: 'flex',
-                gap: 10,
-                overflowX: 'auto',
-                paddingTop: 12,
-                borderTop: '1px solid #18181e',
-                cursor: 'pointer'
-            }}
-            onClick={() => setOpenModal(post.cards)}
-        >
-            {post.cards.slice(0, 5).map((card: any, i: number) => (
-                <div
-                    key={i}
-                    style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'flex-start',
-                        gap: 10,
-                        padding: '10px 12px',
-                        background: '#0c0c0e',
-                        border: '1px solid #1e1e24',
-                        borderRadius: 10,
-                        color: '#888',
-                    }}
-                >
-                    <img
-                        key={i}
-                        src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`}
-                        alt={card.tcgplayer_name}
-                        style={{
-                            width: 80,
-                            height: 80,
-                            objectFit: 'cover',
-                            borderRadius: 8,
-                            background: '#111',
-                            flexShrink: 0
-                        }}
-                    />
-                <span
-                    style={{
-                        width: 80,
-                        textAlign: 'center',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                    }}
-                >
-                    {card.tcgplayer_name}
-                </span>
-                </div>
-            ))}
+                <>
+                    <div
+                        style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingTop: 12, borderTop: '1px solid #18181e', cursor: 'pointer' }}
+                        onClick={() => setOpenModal(post.cards)}
+                    >
+                        {post.cards.slice(0, 5).map((card: any, i: number) => (
+                            <div
+                                key={i}
+                                style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, padding: '10px 12px', background: '#0c0c0e', border: '1px solid #1e1e24', borderRadius: 10, color: '#888', flexShrink: 0 }}
+                            >
+                                <img
+                                    src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`}
+                                    alt={card.tcgplayer_name}
+                                    style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, background: '#111' }}
+                                />
+                                <span style={{ width: 80, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 11 }}>
+                                    {card.tcgplayer_name}
+                                </span>
+                                {card.price != null && (
+                                    <span style={{ width: 80, textAlign: 'center', fontSize: 11, fontWeight: 600, color: '#4ade80' }}>
+                                        ${parseFloat(card.price).toFixed(2)}
+                                    </span>
+                                )}
+                            </div>
+                        ))}
 
-            {post.cards.length > 5 && (
+                        {post.cards.length > 5 && (
+                            <div style={{ width: 80, height: 80, borderRadius: 8, background: '#1e1e24', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: '#888', flexShrink: 0, alignSelf: 'center' }}>
+                                +{post.cards.length - 5}
+                            </div>
+                        )}
+                    </div>
+                </>
+            )}
+
+            {/* Full cards modal */}
+            {openModal && (
                 <div
-                    style={{
-                        width: 80,
-                        height: 80,
-                        borderRadius: 8,
-                        background: '#1e1e24',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: '#888'
-                    }}
+                    onClick={() => setOpenModal(null)}
+                    style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}
                 >
-                    +{post.cards.length - 5}
+                    <div
+                        onClick={e => e.stopPropagation()}
+                        style={{ background: '#111115', padding: 20, borderRadius: 12, maxWidth: 600, width: '90%', maxHeight: '80vh', overflowY: 'auto' }}
+                    >
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 12 }}>
+                            {openModal.map((card, i) => (
+                                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                    <img
+                                        src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`}
+                                        alt={card.tcgplayer_name}
+                                        style={{ width: '100%', borderRadius: 8 }}
+                                    />
+                                    {card.price != null && (
+                                        <span style={{ textAlign: 'center', fontSize: 11, fontWeight: 600, color: '#4ade80' }}>
+                                            ${parseFloat(card.price).toFixed(2)}
+                                        </span>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             )}
-        </div>
-    </>
-)}
-{openModal && (
-    <div
-        onClick={() => setOpenModal(null)}
-        style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.8)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 1000
-        }}
-    >
-        <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-                background: '#111115',
-                padding: 20,
-                borderRadius: 12,
-                maxWidth: 600,
-                width: '90%',
-                maxHeight: '80vh',
-                overflowY: 'auto'
-            }}
-        >
-            <div
-                style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
-                    gap: 12
-                }}
-            >
-                {openModal.map((card, i) => (
-                    <img
-                        key={i}
-                        src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`}
-                        alt={card.tcgplayer_name}
-                        style={{
-                            width: '100%',
-                            borderRadius: 8
-                        }}
-                    />
-                ))}
-            </div>
-        </div>
-    </div>
-)}
-
-
         </div>
     );
 }

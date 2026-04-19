@@ -455,7 +455,7 @@ export default function MainPage() {
         {/* ── Card table ── */}
         <div style={{ background: '#111115', border: '1px solid #1e1e24', borderRadius: 12, overflow: 'hidden', marginBottom: 12 }}>
           {/* Header */}
-          <div style={{ display: 'grid', gridTemplateColumns: '36px 150px 1fr 60px 90px 90px 36px', gap: 8, padding: '10px 16px', borderBottom: '1px solid #1e1e24', background: '#0e0e12', alignItems: 'center' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '36px 150px minmax(0, 1fr) 60px 90px 90px 36px', gap: 8, padding: '10px 16px', borderBottom: '1px solid #1e1e24', background: '#0e0e12', alignItems: 'center' }}>
             <div onClick={toggleSelectAll} style={{ width: 16, height: 16, borderRadius: 4, border: `1.5px solid ${allPageSelected ? '#4f46e5' : '#2a2a32'}`, background: allPageSelected ? '#4f46e5' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
               {allPageSelected && <span style={{ color: '#fff', fontSize: 9, lineHeight: 1 }}>✓</span>}
               {somePagePartial && <span style={{ color: '#4f46e5', fontSize: 11, lineHeight: 1 }}>–</span>}
@@ -495,7 +495,7 @@ export default function MainPage() {
               return (
                 <div
                   key={card.id}
-                  style={{ display: 'grid', gridTemplateColumns: '36px 150px 1fr 60px 90px 90px 36px', gap: 8, alignItems: 'center', padding: '10px 16px', borderBottom: i < pageCards.length - 1 ? '1px solid #18181e' : 'none', transition: 'background 0.1s', background: isSelected ? '#16162a' : 'transparent' }}
+                  style={{ display: 'grid', gridTemplateColumns: '36px 150px minmax(0, 1fr) 60px 90px 90px 36px', gap: 8, alignItems: 'center', padding: '10px 16px', borderBottom: i < pageCards.length - 1 ? '1px solid #18181e' : 'none', transition: 'background 0.1s', background: isSelected ? '#16162a' : 'transparent' }}
                   onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = '#141418'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = isSelected ? '#16162a' : 'transparent'; }}
                 >
@@ -507,10 +507,28 @@ export default function MainPage() {
                     onMouseEnter={e => handleImageMouseEnter(e, card)}
                     onMouseLeave={handleImageMouseLeave}
                     alt={card.tcgplayer_name}
-                    style={{ width: 100, height: 100, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
+                    
+                    style={{ 
+                      width: 100, 
+                      height: 100, 
+                      objectFit: 'contain', 
+                      borderRadius: 3, 
+                      flexShrink: 0,
+                    }}
                   />
                   <div style={{ fontSize: 12, color: '#555', fontFamily: 'monospace' }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.tcgplayer_name || '—'}</div>
+                    <div style={{ 
+                      fontSize: 13, 
+                      fontWeight: 500, 
+                      color: '#d4d2cc', 
+                      whiteSpace: 'nowrap', 
+                      overflow: 'hidden',
+                      minWidth: 0,              
+                      overflowWrap: 'break-word',
+                      wordBreak: 'break-word',
+                      }}>
+                      {card.tcgplayer_name || '—'
+                    }</div>
                     {card.card_number || '—'}
                   </div>
                   {/* Rarity badge */}
