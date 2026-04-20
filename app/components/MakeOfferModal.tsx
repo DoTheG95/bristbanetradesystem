@@ -60,28 +60,28 @@ export default function MakeOfferModal({ open, onClose, receiverId, receiverName
   }, [open]);
 
   const loadMyTradelist = async (uid: string) => {
-  setLoadingMine(true);
+    setLoadingMine(true);
 
-  const { data, error } = await supabase.rpc('get_my_tradelist', {
-    p_user_id: uid,
-  });
+    const { data, error } = await supabase.rpc('get_my_tradelist', {
+      p_user_id: uid,
+    });
 
-  if (error) {
-    setError(error.message);
+    if (error) {
+      setError(error.message);
+      setLoadingMine(false);
+      return;
+    }
+
+    setMyTradelist((data ?? []).map((c: any) => ({
+      tcgplayer_id: c.tcgplayer_id,
+      tcgplayer_name: c.tcgplayer_name ?? '',
+      card_number: c.card_number ?? null,
+      qty: c.qty ?? null,
+      price: c.price != null ? parseFloat(c.price) : null,
+    })));
+
     setLoadingMine(false);
-    return;
-  }
-
-  setMyTradelist((data ?? []).map((c: any) => ({
-    tcgplayer_id: c.tcgplayer_id,
-    tcgplayer_name: c.tcgplayer_name ?? '',
-    card_number: c.card_number ?? null,
-    qty: c.qty ?? null,
-    price: c.price != null ? parseFloat(c.price) : null,
-  })));
-
-  setLoadingMine(false);
-};
+  };
 
 
   const toggleRequesting = (card: MatchedCard) => {
@@ -172,14 +172,17 @@ const handleSubmit = useCallback(async () => {
       p_message: message || null,
       p_items: items,
     });
+    console.log('RPC Response:', { data, error });
+    if (error) console.error('Supabase RPC error:', error);
 
     if (error) throw error;
 
     if (!data.success) {
-      if (data.error === 'duplicate_trade') {
-        setError('You already have a pending trade for one of these cards.');
+      if (data.error === 'duplicate_request') {
+        setError('You already have a pending trade for one or more of these cards.');
       } else {
-        setError('Failed to create trade.');
+        setError(data.message || 'Failed to create trade.');
+        console.error('Trade creation failed:', data); // Helpful for debugging
       }
       setSubmitting(false);
       return;
