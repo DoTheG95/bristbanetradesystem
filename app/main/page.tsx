@@ -106,23 +106,30 @@ export default function MainPage() {
   /* ── auth guard ── */
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) { window.location.replace('/'); return; }
-      const { data: profile } = await supabase
-        .from('profiles').select('display_name').eq('id', session.user.id).maybeSingle();
-      if (!profile) {
-      // No profile row at all
-      window.location.replace('/');
-      return;
+      if (!session) {
+        window.location.replace('/');
+        return;
       }
-      if (!profile?.display_name) { window.location.replace('/onboarding'); return; }
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('id', session.user.id)
+        .single();
+      if (!profile?.display_name) {
+        window.location.replace('/onboarding');
+        return;
+      }
       setUserId(session.user.id);
       setUserEmail(session.user.email ?? null);
       setDisplayName(profile.display_name);
       setChecking(false);
     });
+ 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT' || !session) window.location.replace('/');
-    });
+      if (event === 'SIGNED_OUT' || !session) {
+        window.location.replace('/');
+      }
+    }); 
     return () => subscription.unsubscribe();
   }, []);
 
