@@ -2,7 +2,6 @@
 
 import React from 'react';
 
-const PUBLIC_ID = '00000000-0000-0000-0000-000000000000';
 
 export default function PostCard({ post, currentUserId, communityNameMap, onDelete }: {
     post: any;
@@ -11,10 +10,10 @@ export default function PostCard({ post, currentUserId, communityNameMap, onDele
     onDelete: (id: string) => void;
 }) {
     const audienceParts: string[] = [];
-    if (post.community_ids?.includes(PUBLIC_ID)) audienceParts.push('Public');
+    if (post.community_ids === null) audienceParts.push('Public');
     if (Array.isArray(post.community_ids)) {
         post.community_ids.forEach((id: string) => {
-            if (id === PUBLIC_ID) return;
+            // is public skip
             const name = communityNameMap[id];
             if (name) audienceParts.push(name);
         });

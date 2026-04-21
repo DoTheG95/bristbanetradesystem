@@ -38,7 +38,8 @@ function downloadCSV(filename: string, rows: ExportRow[]) {
 
 export default function LocalArea() {
     const [communities, setCommunities]               = useState<Community[]>([]);
-    const [selectedCommunity, setSelectedCommunity]   = useState<string>('');
+    // Store selected community as number (matches communities.id type)
+    const [selectedCommunityId, setSelectedCommunityId] = useState<number | null>(null);
     const [showCommunityModal, setShowCommunityModal] = useState(false);
     const [showJoinModal, setShowJoinModal]           = useState(false);
     const [loading, setLoading]                       = useState(true);
@@ -48,7 +49,6 @@ export default function LocalArea() {
     const [postsLoading, setPostsLoading]             = useState(false);
     const [codeCopied, setCodeCopied]                 = useState(false);
 
-    // Export preview state
     const [exportPreview, setExportPreview] = useState<{
         listType: 'wishlist' | 'tradelist';
         rows: ExportRow[];
@@ -68,9 +68,9 @@ export default function LocalArea() {
     }, []);
 
     useEffect(() => {
-        if (!selectedCommunity) return;
-        fetchCommunityPosts(selectedCommunity);
-    }, [selectedCommunity]);
+        if (selectedCommunityId == null) return;
+        fetchCommunityPosts(selectedCommunityId);
+    }, [selectedCommunityId]);
 
     const fetchUserCommunityIds = useCallback(async (uid: string) => {
         const { data, error } = await supabase
@@ -81,19 +81,19 @@ export default function LocalArea() {
         else setLoading(false);
     }, []);
 
-    const fetchCommunities = async (ids: string[]) => {
+    const fetchCommunities = async (ids: number[]) => {
         const { data, error } = await supabase
             .from('communities').select('id, name, description').in('id', ids);
         if (error) { console.error(error); }
         else {
-            const fetched = data ?? [];
+            const fetched = (data ?? []) as Community[];
             setCommunities(fetched);
-            if (fetched.length > 0) setSelectedCommunity(fetched[0].id.toString());
+            if (fetched.length > 0) setSelectedCommunityId(fetched[0].id);
         }
         setLoading(false);
     };
 
-    const fetchCommunityPosts = useCallback(async (communityId: string) => {
+    const fetchCommunityPosts = useCallback(async (communityId: number) => {
         setPostsLoading(true);
         const { data, error } = await supabase
             .from('posts').select('*')
@@ -105,10 +105,10 @@ export default function LocalArea() {
     }, []);
 
     const handleCopyCommunityCode = useCallback(async () => {
-        if (!selectedCommunity) return;
+        if (selectedCommunityId == null) return;
         try {
             const { data: community, error } = await supabase
-                .from('communities').select('access_code').eq('id', selectedCommunity).single();
+                .from('communities').select('access_code').eq('id', selectedCommunityId).single();
             if (error) throw error;
             if (!community?.access_code) return;
             await navigator.clipboard.writeText(community.access_code);
@@ -117,20 +117,21 @@ export default function LocalArea() {
         } catch (err) {
             console.error('Failed to copy code:', err);
         }
-    }, [selectedCommunity]);
+    }, [selectedCommunityId]);
 
-    /* ── Load export data → show preview modal ── */
     const handleExport = useCallback(async (listType: 'wishlist' | 'tradelist') => {
-        if (!selectedCommunity) return;
+        if (selectedCommunityId == null) return;
         setExportLoading(listType);
 
         try {
             const { data: members, error: memberErr } = await supabase
-                .from('user_communities').select('user_id').eq('community_id', selectedCommunity);
+                .from('user_communities').select('user_id').eq('community_id', selectedCommunityId);
             if (memberErr) throw memberErr;
 
-            const memberIds = (members ?? []).map((m: any) => m.user_id);
-            if (memberIds.length === 0) { alert('No members found.'); return; }
+            const memberIds = (members ?? [])
+                .map((m: any) => m.user_id)
+                .filter((id: string) => id !== userId);
+            if (memberIds.length === 0) { alert('No other members found.'); return; }
 
             const { data: profiles, error: profileErr } = await supabase
                 .from('profiles').select('id, display_name').in('id', memberIds);
@@ -167,7 +168,7 @@ export default function LocalArea() {
                     tcgplayer_id:   String(c.tcgplayer_id ?? ''),
                 }));
 
-            const communityName = communities.find(c => c.id.toString() === selectedCommunity)?.name ?? 'community';
+            const communityName = communities.find(c => c.id === selectedCommunityId)?.name ?? 'community';
             setExportPreview({ listType, rows, communityName });
 
         } catch (err: any) {
@@ -176,7 +177,7 @@ export default function LocalArea() {
         } finally {
             setExportLoading(null);
         }
-    }, [selectedCommunity, communities]);
+    }, [selectedCommunityId, communities]);
 
     const handleDownloadCSV = useCallback(() => {
         if (!exportPreview) return;
@@ -195,16 +196,15 @@ export default function LocalArea() {
         if (!window.confirm('Are you sure you want to delete this post?')) return;
         const { error } = await supabase.from('posts').delete().eq('id', postId).eq('user_id', userId);
         if (error) console.error('Delete error:', error.message);
-        else if (selectedCommunity) fetchCommunityPosts(selectedCommunity);
+        else if (selectedCommunityId != null) fetchCommunityPosts(selectedCommunityId);
     };
 
-    const communityNameMap: Record<string, string> = {};
+    const communityNameMap: Record<number, string> = {};
     communities.forEach(c => { communityNameMap[c.id] = c.name; });
 
-    const currentCommunity            = communities.find(c => c.id.toString() === selectedCommunity);
+    const currentCommunity            = communities.find(c => c.id === selectedCommunityId);
     const currentCommunityDescription = currentCommunity?.description ?? 'No description available.';
 
-    // Group preview rows by username for display
     const groupedPreview = exportPreview
         ? exportPreview.rows.reduce<Record<string, ExportRow[]>>((acc, row) => {
             if (!acc[row.username]) acc[row.username] = [];
@@ -212,6 +212,9 @@ export default function LocalArea() {
             return acc;
           }, {})
         : {};
+
+
+    const userCommunitiesForPost: Community[] = communities;
 
     return (
         <div style={{ minHeight: '100vh', background: '#0c0c0e', color: '#e8e6e0', fontFamily: 'sans-serif' }}>
@@ -222,7 +225,7 @@ export default function LocalArea() {
                     Join or create a community to trade and connect with people nearby.
                 </p>
 
-                <div style={{ display: 'flex', gap: 12, marginBottom: 32 }}>
+                <div style={{ display: 'flex', gap: 12, marginBottom: 32, flexWrap: 'wrap', alignItems: 'center' }}>
                     <button onClick={() => setShowJoinModal(true)} style={{ padding: '8px 20px', borderRadius: 8, border: '1px solid #4f46e5', background: 'transparent', color: '#818cf8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                         Join a Community
                     </button>
@@ -234,7 +237,11 @@ export default function LocalArea() {
                     ) : communities.length === 0 ? (
                         <span style={{ color: '#555', fontSize: 13 }}>You haven't joined any communities yet.</span>
                     ) : (
-                        <select value={selectedCommunity} onChange={(e) => setSelectedCommunity(e.target.value)} style={{ background: '#18181e', color: '#818cf8', border: '1px solid #2a2a32', padding: '6px 10px', borderRadius: 6, fontSize: 13, fontWeight: 600, outline: 'none', cursor: 'pointer' }}>
+                        <select
+                            value={selectedCommunityId ?? ''}
+                            onChange={e => setSelectedCommunityId(Number(e.target.value))}
+                            style={{ background: '#18181e', color: '#818cf8', border: '1px solid #2a2a32', padding: '6px 10px', borderRadius: 6, fontSize: 13, fontWeight: 600, outline: 'none', cursor: 'pointer' }}
+                        >
                             {communities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                     )}
@@ -251,34 +258,16 @@ export default function LocalArea() {
                             <div style={{ color: '#9ca3af', fontSize: 13, lineHeight: 1.5 }}>{currentCommunityDescription}</div>
                         </div>
 
-                        {/* Action buttons */}
-                        {selectedCommunity && (
+                        {selectedCommunityId != null && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
-                                <button
-                                    onClick={handleCopyCommunityCode}
-                                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 7, border: '1px solid #2a2a3a', background: '#16161c', color: codeCopied ? '#4ade80' : '#888', fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap' }}
-                                >
+                                <button onClick={handleCopyCommunityCode} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 7, border: '1px solid #2a2a3a', background: '#16161c', color: codeCopied ? '#4ade80' : '#888', fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
                                     {codeCopied ? '✓ Copied!' : '⧉ Copy Code'}
                                 </button>
-                                <button
-                                    onClick={() => handleExport('wishlist')}
-                                    disabled={exportLoading === 'wishlist'}
-                                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 7, border: '1px solid #2a2a3a', background: exportLoading === 'wishlist' ? '#1e1e28' : '#16162a', color: exportLoading === 'wishlist' ? '#444' : '#818cf8', fontSize: 11, fontWeight: 600, cursor: exportLoading === 'wishlist' ? 'not-allowed' : 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap' }}
-                                >
-                                    {exportLoading === 'wishlist'
-                                        ? <span style={{ display: 'inline-block', width: 10, height: 10, border: '1.5px solid #444', borderTopColor: '#818cf8', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-                                        : '↓'}
-                                    ✦ Wishlist
+                                <button onClick={() => handleExport('wishlist')} disabled={exportLoading === 'wishlist'} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 7, border: '1px solid #2a2a3a', background: exportLoading === 'wishlist' ? '#1e1e28' : '#16162a', color: exportLoading === 'wishlist' ? '#444' : '#818cf8', fontSize: 11, fontWeight: 600, cursor: exportLoading === 'wishlist' ? 'not-allowed' : 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
+                                    {exportLoading === 'wishlist' ? <span style={{ display: 'inline-block', width: 10, height: 10, border: '1.5px solid #444', borderTopColor: '#818cf8', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : '↓'} ✦ Wishlist
                                 </button>
-                                <button
-                                    onClick={() => handleExport('tradelist')}
-                                    disabled={exportLoading === 'tradelist'}
-                                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 7, border: '1px solid #2a2a3a', background: exportLoading === 'tradelist' ? '#1e1e28' : '#16162a', color: exportLoading === 'tradelist' ? '#444' : '#4ade80', fontSize: 11, fontWeight: 600, cursor: exportLoading === 'tradelist' ? 'not-allowed' : 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap' }}
-                                >
-                                    {exportLoading === 'tradelist'
-                                        ? <span style={{ display: 'inline-block', width: 10, height: 10, border: '1.5px solid #444', borderTopColor: '#4ade80', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-                                        : '↓'}
-                                    ⇄ Trade List
+                                <button onClick={() => handleExport('tradelist')} disabled={exportLoading === 'tradelist'} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 7, border: '1px solid #2a2a3a', background: exportLoading === 'tradelist' ? '#1e1e28' : '#16162a', color: exportLoading === 'tradelist' ? '#444' : '#4ade80', fontSize: 11, fontWeight: 600, cursor: exportLoading === 'tradelist' ? 'not-allowed' : 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
+                                    {exportLoading === 'tradelist' ? <span style={{ display: 'inline-block', width: 10, height: 10, border: '1.5px solid #444', borderTopColor: '#4ade80', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : '↓'} ⇄ Trade List
                                 </button>
                             </div>
                         )}
@@ -289,7 +278,13 @@ export default function LocalArea() {
                 {/* Feed */}
                 {!loading && communities.length > 0 && userId && (
                     <>
-                        <CreatePostBox userId={userId} displayName={displayName} userCommunities={communities} onPostCreated={() => fetchCommunityPosts(selectedCommunity)} />
+                        <CreatePostBox
+                            userId={userId}
+                            displayName={displayName}
+                            userCommunities={userCommunitiesForPost}
+                            onPostCreated={() => selectedCommunityId != null && fetchCommunityPosts(selectedCommunityId)}
+                            currentCommunityId={selectedCommunityId}
+                        />
                         {postsLoading ? (
                             <div style={{ textAlign: 'center', color: '#444', padding: '40px 0', fontSize: 13 }}>Loading posts…</div>
                         ) : posts.length === 0 ? (
@@ -297,7 +292,13 @@ export default function LocalArea() {
                         ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                                 {posts.map(post => (
-                                    <PostCard key={post.id} post={post} currentUserId={userId} communityNameMap={communityNameMap} onDelete={handleDeletePost} />
+                                    <PostCard
+                                        key={post.id}
+                                        post={post}
+                                        currentUserId={userId}
+                                        communityNameMap={communityNameMap}
+                                        onDelete={handleDeletePost}
+                                    />
                                 ))}
                             </div>
                         )}
@@ -305,17 +306,10 @@ export default function LocalArea() {
                 )}
             </div>
 
-            {/* ── Export Preview Modal ── */}
+            {/* Export Preview Modal */}
             {exportPreview && (
-                <div
-                    onClick={() => setExportPreview(null)}
-                    style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
-                >
-                    <div
-                        onClick={e => e.stopPropagation()}
-                        style={{ width: '100%', maxWidth: 560, maxHeight: '85vh', background: '#111115', border: '1px solid #1e1e24', borderRadius: 14, display: 'flex', flexDirection: 'column', boxShadow: '0 32px 80px rgba(0,0,0,0.8)', animation: 'modalIn 0.18s ease' }}
-                    >
-                        {/* Header */}
+                <div onClick={() => setExportPreview(null)} style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+                    <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 560, maxHeight: '85vh', background: '#111115', border: '1px solid #1e1e24', borderRadius: 14, display: 'flex', flexDirection: 'column', boxShadow: '0 32px 80px rgba(0,0,0,0.8)', animation: 'modalIn 0.18s ease' }}>
                         <div style={{ padding: '16px 20px', borderBottom: '1px solid #1e1e24', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
                             <div>
                                 <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#e8e6e0' }}>
@@ -327,63 +321,34 @@ export default function LocalArea() {
                             </div>
                             <button onClick={() => setExportPreview(null)} style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid #2a2a32', background: 'transparent', color: '#555', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
                         </div>
-
-                        {/* Body — grouped by user */}
                         <div style={{ overflowY: 'auto', flex: 1, padding: '8px 0' }}>
                             {Object.entries(groupedPreview).map(([username, rows]) => (
                                 <div key={username} style={{ marginBottom: 8 }}>
-                                    {/* Username header */}
                                     <div style={{ padding: '8px 20px 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <div style={{
-                                            width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
-                                            background: `hsl(${username.charCodeAt(0) * 7 % 360}, 40%, 18%)`,
-                                            border: `1.5px solid hsl(${username.charCodeAt(0) * 7 % 360}, 55%, 32%)`,
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            fontSize: 11, fontWeight: 700,
-                                            color: `hsl(${username.charCodeAt(0) * 7 % 360}, 75%, 65%)`,
-                                        }}>
+                                        <div style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, background: `hsl(${username.charCodeAt(0) * 7 % 360}, 40%, 18%)`, border: `1.5px solid hsl(${username.charCodeAt(0) * 7 % 360}, 55%, 32%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: `hsl(${username.charCodeAt(0) * 7 % 360}, 75%, 65%)` }}>
                                             {username.charAt(0).toUpperCase()}
                                         </div>
                                         <span style={{ fontSize: 13, fontWeight: 600, color: '#e8e6e0' }}>{username}</span>
                                         <span style={{ fontSize: 11, color: '#444' }}>{rows.length} card{rows.length !== 1 ? 's' : ''}</span>
                                     </div>
-
-                                    {/* Cards */}
                                     <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 2 }}>
                                         {rows.map((row, i) => (
                                             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', background: '#16161c', borderRadius: 6 }}>
-                                                <img
-                                                    src={`https://tcgplayer-cdn.tcgplayer.com/product/${row.tcgplayer_id}_in_200x200.jpg`}
-                                                    alt={row.tcgplayer_name}
-                                                    style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
-                                                />
+                                                <img src={`https://tcgplayer-cdn.tcgplayer.com/product/${row.tcgplayer_id}_in_200x200.jpg`} alt={row.tcgplayer_name} style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }} />
                                                 <div style={{ flex: 1, minWidth: 0 }}>
-                                                    <div style={{ fontSize: 12, fontWeight: 500, color: '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                        {row.tcgplayer_name || '—'}
-                                                    </div>
+                                                    <div style={{ fontSize: 12, fontWeight: 500, color: '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.tcgplayer_name || '—'}</div>
                                                     <div style={{ fontSize: 10, color: '#444', fontFamily: 'monospace' }}>{row.card_number}</div>
                                                 </div>
-                                                {row.quantity !== '—' && (
-                                                    <span style={{ fontSize: 11, color: '#555', flexShrink: 0 }}>×{row.quantity}</span>
-                                                )}
+                                                {row.quantity !== '—' && <span style={{ fontSize: 11, color: '#555', flexShrink: 0 }}>×{row.quantity}</span>}
                                             </div>
                                         ))}
                                     </div>
                                 </div>
                             ))}
                         </div>
-
-                        {/* Footer */}
                         <div style={{ padding: '14px 20px', borderTop: '1px solid #1e1e24', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-                            <button onClick={() => setExportPreview(null)} style={{ padding: '7px 16px', borderRadius: 7, border: '1px solid #2a2a32', background: 'transparent', color: '#888', fontSize: 13, cursor: 'pointer' }}>
-                                Close
-                            </button>
-                            <button
-                                onClick={handleDownloadCSV}
-                                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 20px', borderRadius: 7, border: 'none', background: '#4f46e5', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-                            >
-                                ↓ Download CSV
-                            </button>
+                            <button onClick={() => setExportPreview(null)} style={{ padding: '7px 16px', borderRadius: 7, border: '1px solid #2a2a32', background: 'transparent', color: '#888', fontSize: 13, cursor: 'pointer' }}>Close</button>
+                            <button onClick={handleDownloadCSV} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 20px', borderRadius: 7, border: 'none', background: '#4f46e5', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>↓ Download CSV</button>
                         </div>
                     </div>
                 </div>
