@@ -108,7 +108,12 @@ export default function MainPage() {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { window.location.replace('/'); return; }
       const { data: profile } = await supabase
-        .from('profiles').select('display_name').eq('id', session.user.id).single();
+        .from('profiles').select('display_name').eq('id', session.user.id).maybeSingle();
+      if (!profile) {
+      // No profile row at all
+      window.location.replace('/');
+      return;
+      }
       if (!profile?.display_name) { window.location.replace('/onboarding'); return; }
       setUserId(session.user.id);
       setUserEmail(session.user.email ?? null);
