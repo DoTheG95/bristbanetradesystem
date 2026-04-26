@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
           password_hash: hashPassword(String(password)),
           name: name ? String(name).trim() : null,
           last_login: new Date().toISOString(),
-          role: 'user',
+          role: 'admin',
         })
         .select('id, email, name, avatar_url, role, facebook_id')
         .single();
