@@ -71,8 +71,7 @@ export default function Home() {
     const { error: signUpError } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: window.location.origin + '/main' },
-    });
+      options: { emailRedirectTo: (process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin) + '/main' },    });
     setLoading(false);
 
     if (signUpError) {
