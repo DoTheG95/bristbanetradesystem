@@ -46,15 +46,16 @@ export default function OnboardingPage() {
 
     // upsert handles both the case where the profiles row doesn't exist yet
     // (Supabase Auth doesn't auto-create it) and where it does exist but has no display_name.
-    const { error: upsertError } = await supabase
+    const { error: updateError } = await supabase
       .from('profiles')
-      .upsert({ id: userId, display_name: trimmed }, { onConflict: 'id' });
+      .update({ display_name: trimmed })
+      .eq('id', userId);
 
     setLoading(false);
 
-    if (upsertError) {
+    if (updateError) {
       setError('Something went wrong. Please try again.');
-      console.error(upsertError);
+      console.error(updateError);
       return;
     }
 
