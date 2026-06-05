@@ -40,19 +40,21 @@ export default function OnboardingPage() {
     if (!trimmed) { setError('Please enter a display name.'); return; }
     if (trimmed.length < 2) { setError('Display name must be at least 2 characters.'); return; }
     if (trimmed.length > 32) { setError('Display name must be under 32 characters.'); return; }
+    if (!userId) { setError('Session expired. Please log in again.'); return; }
 
     setLoading(true);
 
-    const { error: updateError } = await supabase
+    // upsert handles both the case where the profiles row doesn't exist yet
+    // (Supabase Auth doesn't auto-create it) and where it does exist but has no display_name.
+    const { error: upsertError } = await supabase
       .from('profiles')
-      .update({ display_name: trimmed })
-      .eq('id', userId);
+      .upsert({ id: userId, display_name: trimmed }, { onConflict: 'id' });
 
     setLoading(false);
 
-    if (updateError) {
+    if (upsertError) {
       setError('Something went wrong. Please try again.');
-      console.error(updateError);
+      console.error(upsertError);
       return;
     }
 
