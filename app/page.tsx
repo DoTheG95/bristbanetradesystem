@@ -10,7 +10,6 @@ export default function Home() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [accessCode, setAccessCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -58,11 +57,6 @@ export default function Home() {
     setError(null);
     setMessage(null);
 
-    // Validate access code first
-    const validCode = process.env.NEXT_PUBLIC_ACCESS_CODE;
-    if (!accessCode) { setError('Please enter the access code.'); return; }
-    if (accessCode.trim() !== validCode) { setError('Invalid access code.'); return; }
-
     if (!email || !password || !confirmPassword) { setError('Please fill in all fields.'); return; }
     if (password !== confirmPassword) { setError('Passwords do not match.'); return; }
     if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
@@ -92,7 +86,6 @@ export default function Home() {
     setEmail('');
     setPassword('');
     setConfirmPassword('');
-    setAccessCode('');
   };
 
   const handleSendReset = async () => {
@@ -139,23 +132,6 @@ export default function Home() {
 
           {/* Inputs */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-
-            {/* Access code — signup only */}
-            {tab === 'signup' && (
-              <div>
-                <input
-                  type="text"
-                  placeholder="Access code"
-                  value={accessCode}
-                  onChange={(e) => setAccessCode(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  style={styles.input}
-                  onFocus={(e) => (e.currentTarget.style.borderColor = 'rgba(99,102,241,0.6)')}
-                  onBlur={(e) => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)')}
-                />
-                <p style={styles.fieldHint}>Early access only — enter your invite code</p>
-              </div>
-            )}
 
             <input
               type="email"

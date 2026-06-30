@@ -103,6 +103,8 @@ export default function MainPage() {
 
   const [offerTarget, setOfferTarget] = useState<MatchResult | null>(null);
 
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
   /* ── auth guard ── */
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {

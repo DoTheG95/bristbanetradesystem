@@ -3,12 +3,14 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
+
 export default function OnboardingPage() {
   const [displayName, setDisplayName] = useState('');
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -45,7 +47,6 @@ export default function OnboardingPage() {
     setLoading(true);
 
     // upsert handles both the case where the profiles row doesn't exist yet
-    // (Supabase Auth doesn't auto-create it) and where it does exist but has no display_name.
     const { error: updateError } = await supabase
       .from('profiles')
       .update({ display_name: trimmed })

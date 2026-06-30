@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import SelectedCard from './SelectedCard';
 
 type Props = {
   open: boolean;
@@ -24,6 +25,7 @@ interface SelectedItem {
   rarity: string;
   combinedName: string;
   quantity: number | null; // null = "any / untracked"
+  price: number | null;
   raw: any;
 }
 
@@ -193,6 +195,7 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
         rarity:         r.rarity,
         combinedName:   r.combinedName,
         quantity:       null,
+        price:          r.price,
         raw:            r.raw,
       }];
     });
@@ -281,6 +284,7 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
       rarity:         (item.rarity ?? '').toUpperCase(),
       combinedName:   item.combinedName,
       quantity:       item.quantity,
+      price:          item.price,
       raw:            item.raw,
     })));
     setSelectedItems([]);
@@ -297,10 +301,29 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
         rarity:         (c.rarity ?? '').toUpperCase(),
         combinedName:   `${c.tcgplayer_name}  ${c.card_number}`.trim(),
         quantity:       null,
+        price:          c.price,
         raw:            c.raw,
       }));
     if (toAdd.length > 0) onAdd(toAdd);
   }, [packResults, bulkSelected, onAdd]);
+
+  const updatePrice = (id: string, value: string) => {
+  setSelectedItems(prev =>
+    prev.map(item => {
+      if (item.id !== id) return item;
+
+      return {
+        ...item,
+        price:
+          value.trim() === ''
+            ? null
+            : Number.isNaN(Number(value))
+              ? item.price
+              : Number(value),
+      };
+    })
+  );
+};
 
   if (!open) return null;
 
@@ -315,8 +338,12 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          width: '100%',
-          maxWidth: mode === 'bulk' ? 860 : hasSelected ? 760 : 480,
+          maxWidth: mode === 'bulk'
+            ? 1200
+            : hasSelected
+              ? 980
+              : 560,
+          width: '95vw',
           maxHeight: '90vh',
           background: '#111115',
           border: '1px solid #2a2a32',
@@ -471,7 +498,7 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
 
           {/* ── Right panel: selected items with qty controls ── */}
           {mode === 'search' && hasSelected && (
-            <div style={{ width: 260, flexShrink: 0, display: 'flex', flexDirection: 'column', background: '#0e0e12' }}>
+            <div style={{ width: 320, flexShrink: 0, display: 'flex', flexDirection: 'column', background: '#0e0e12' }}>
               {/* Panel header */}
               <div style={{ padding: '10px 14px', borderBottom: '1px solid #1e1e24', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
                 <span style={{ fontSize: 11, fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
@@ -514,59 +541,25 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
 
               {/* Scrollable list */}
               <div style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}>
-                {selectedItems.map(item => (
-                  <div key={item.id} style={{ padding: '10px 14px', borderBottom: '1px solid #18181e' }}>
-
-                    {/* Card row */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                      <img
-                        src={`https://tcgplayer-cdn.tcgplayer.com/product/${item.tcgplayer_id}_in_200x200.jpg`}
-                        alt={item.tcgplayer_name}
-                        style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
-                      />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 500, color: '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {item.tcgplayer_name}
-                        </div>
-                        <div style={{ display: 'flex', gap: 5, marginTop: 1, alignItems: 'center' }}>
-                          <span style={{ fontSize: 10, color: '#444', fontFamily: 'monospace' }}>{item.card_number}</span>
-                          {item.rarity && <span style={{ fontSize: 9, fontWeight: 700, color: RARITY_COLOURS[item.rarity] ?? '#555' }}>{item.rarity}</span>}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => removeItem(item.id)}
-                        style={{ width: 20, height: 20, borderRadius: 4, border: '1px solid #2a2a32', background: 'transparent', color: '#444', cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#c0392b'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#c0392b'; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#444'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#2a2a32'; }}
-                      >×</button>
-                    </div>
-
-                    {/* Qty stepper */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 10, color: '#444', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, flexShrink: 0 }}>Qty</span>
-                      <div style={{ display: 'flex', alignItems: 'center', background: '#18181e', border: '1px solid #2a2a32', borderRadius: 6, overflow: 'hidden' }}>
-                        <button
-                          onClick={() => decrementQty(item.id)}
-                          style={{ width: 28, height: 26, background: 'transparent', border: 'none', color: '#555', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
-                          onMouseEnter={e => (e.currentTarget.style.color = '#e8e6e0')}
-                          onMouseLeave={e => (e.currentTarget.style.color = '#555')}
-                        >−</button>
-                        <div style={{ minWidth: 36, textAlign: 'center', fontSize: 13, fontWeight: 600, color: item.quantity === null ? '#2a2a32' : '#d4d2cc', borderLeft: '1px solid #2a2a32', borderRight: '1px solid #2a2a32', lineHeight: '26px', userSelect: 'none' }}>
-                          {item.quantity === null ? '—' : item.quantity}
-                        </div>
-                        <button
-                          onClick={() => incrementQty(item.id)}
-                          style={{ width: 28, height: 26, background: 'transparent', border: 'none', color: '#555', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
-                          onMouseEnter={e => (e.currentTarget.style.color = '#e8e6e0')}
-                          onMouseLeave={e => (e.currentTarget.style.color = '#555')}
-                        >+</button>
-                      </div>
-                      {item.quantity === null && (
-                        <span style={{ fontSize: 10, color: '#2a2a32', fontStyle: 'italic' }}>unset</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
+<div
+  style={{
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+    padding: 12,
+  }}
+>
+  {selectedItems.map(item => (
+    <SelectedCard
+      key={item.id}
+      item={item}
+      onRemove={removeItem}
+      onIncrementQty={incrementQty}
+      onDecrementQty={decrementQty}
+      onPriceChange={updatePrice}
+    />
+  ))}
+</div>
               </div>
             </div>
           )}
