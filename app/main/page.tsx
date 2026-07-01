@@ -6,67 +6,22 @@ import MakeOfferModal from '../components/MakeOfferModal';
 import MatchModal, { MatchResult, MatchedCard } from '../components/MatchModal';
 import { supabase } from '@/lib/supabase';
 import Navbar from '../components/Navbar';
-
-type ListType = 'wishlist' | 'tradelist';
-type SortField = 'date_added' | 'name' | 'rarity' | 'card_number';
-type SortDir   = 'asc' | 'desc';
-
-const RARITY_ORDER: Record<string, number> = { C: 0, U: 1, UC: 1, R: 2, SR: 3, UR: 4, SEC: 5, P: 6 };
-
-interface CardEntry {
-  id: string;
-  tcgplayer_id: string;
-  tcgplayer_name: string;
-  card_number: string;
-  quantity: number | null;
-  rarity: string | null;
-  created_at?: string;
-  price: number | null;
-}
-
-interface PopoverState {
-  cardId: string;
-  src: string;
-  name: string;
-  x: number;
-  y: number;
-}
-
-// Shape returned by find_traders_for_cards RPC
-interface TraderResult {
-  user_id: string;
-  display_name: string;
-  digimon: string | null;
-  tcgplayer_id: string;
-  tcgplayer_name: string;
-  card_number: string | null;
-  rarity: string | null;
-  they_have_qty: number | null;
-  price: number | null;
-}
-
-// Grouped by trader for display
-interface TraderGroup {
-  userId: string;
-  displayName: string;
-  digimon: string | null;
-  cards: {
-    tcgplayer_id: string;
-    tcgplayer_name: string;
-    card_number: string | null;
-    rarity: string | null;
-    qty: number | null;
-    price: number | null;
-  }[];
-}
-
-const EMPTY: Record<ListType, CardEntry[]> = { wishlist: [], tradelist: [] };
-const PER_PAGE_OPTIONS = [5, 10, 20, 50, 100];
-const AUTO_SAVE_DELAY  = 1500;
-
-const SORT_LABELS: Record<SortField, string> = {
-  date_added: 'Date added', name: 'Name', rarity: 'Rarity', card_number: 'Card no.',
-};
+import {
+  AUTO_SAVE_DELAY,
+  CardEntry,
+  EMPTY_LISTS,
+  ListType,
+  PER_PAGE_OPTIONS,
+  PopoverState,
+  RARITY_ORDER,
+  SORT_LABELS,
+  SortDir,
+  SortField,
+  TraderGroup,
+  TraderResult,
+} from '../components/CardTypes';
+import ViewToggle from '../components/ViewToggle';
+import ListView from '../components/ListView';
 
 export default function MainPage() {
   const [userId, setUserId]           = useState<string | null>(null);
@@ -74,7 +29,7 @@ export default function MainPage() {
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [checking, setChecking]       = useState(true);
   const [activeTab, setActiveTab]     = useState<ListType>('wishlist');
-  const [lists, setLists]             = useState<Record<ListType, CardEntry[]>>(EMPTY);
+  const [lists, setLists]             = useState<Record<ListType, CardEntry[]>>(EMPTY_LISTS);
   const [showModal, setShowModal]     = useState(false);
   const [saving, setSaving]           = useState(false);
   const [saveMsg, setSaveMsg]         = useState<string | null>(null);
@@ -432,10 +387,30 @@ export default function MainPage() {
         </div>
 
         {/* Sort */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-          <span style={{ fontSize: 10, color: '#333', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600, marginRight: 2 }}>Sort</span>
-          {(['date_added', 'name', 'rarity', 'card_number'] as SortField[]).map(f => <SortBtn key={f} field={f} />)}
-        </div>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 12,
+          }}
+        >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <span style={{ fontSize: 10, color: '#333', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600, marginRight: 2 }}>Sort</span>
+                {(['date_added', 'name', 'rarity', 'card_number'] as SortField[]).map(f => <SortBtn key={f} field={f} />)}
+            
+            </div>
+            <ViewToggle
+              viewMode={viewMode}
+              onChange={setViewMode}
+            />
+          </div>
 
         {/* Bulk action bar */}
         {someSelected && (
@@ -471,7 +446,7 @@ export default function MainPage() {
             <span style={{ fontSize: 10, fontWeight: 600, color: '#444', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Rarity</span>
             <span style={{ fontSize: 10, fontWeight: 600, color: '#444', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Qty</span>
             <span style={{ fontSize: 10, fontWeight: 600, color: '#444', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              {isWishlist ? 'Find' : 'Price'}
+              {isWishlist ? 'Find' : 'Price ($)'}
             </span>
             <span />
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end' }}>
@@ -493,44 +468,19 @@ export default function MainPage() {
               No cards match "<span style={{ color: '#555' }}>{tableSearch}</span>"
             </div>
           ) : (
-            pageCards.map((card, i) => {
-              const isSelected = selected.has(card.id);
-              return (
-                <div key={card.id} style={{ display: 'grid', gridTemplateColumns: gridCols, gap: 8, alignItems: 'center', padding: '10px 16px', borderBottom: i < pageCards.length - 1 ? '1px solid #18181e' : 'none', transition: 'background 0.1s', background: isSelected ? '#16162a' : 'transparent' }} onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = '#141418'; }} onMouseLeave={e => { e.currentTarget.style.background = isSelected ? '#16162a' : 'transparent'; }}>
-                  <div onClick={() => toggleSelect(card.id)} style={{ width: 16, height: 16, borderRadius: 4, border: `1.5px solid ${isSelected ? '#4f46e5' : '#2a2a32'}`, background: isSelected ? '#4f46e5' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
-                    {isSelected && <span style={{ color: '#fff', fontSize: 9, lineHeight: 1 }}>✓</span>}
-                  </div>
-                  <img src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`} onMouseEnter={e => handleImageMouseEnter(e, card)} onMouseLeave={handleImageMouseLeave} alt={card.tcgplayer_name} style={{ width: 100, height: 100, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }} />
-                  <div style={{ fontSize: 12, color: '#555', fontFamily: 'monospace', minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.tcgplayer_name || '—'}</div>
-                    {card.card_number || '—'}
-                  </div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#555', textAlign: 'center' }}>{card.rarity ?? '—'}</div>
-                  <input type="number" min={1} value={card.quantity ?? ''} onChange={e => updateQty(activeTab, card.id, e.target.value)} placeholder="—" style={{ width: '100%', padding: '4px 8px', background: '#18181e', border: '1px solid #2a2a32', borderRadius: 6, color: '#d4d2cc', fontSize: 13, textAlign: 'center', outline: 'none' }} />
-
-                  {/* Conditional 6th column */}
-                  {isWishlist ? (
-                    <button
-                      onClick={() => handleFindSingle(card)}
-                      style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #2a2a3a', background: 'transparent', color: '#555', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.12s' }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = '#4f46e5'; e.currentTarget.style.color = '#818cf8'; }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = '#2a2a3a'; e.currentTarget.style.color = '#555'; }}
-                    >
-                      🔍 Find
-                    </button>
-                  ) : (
-                    <div style={{ position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#4ade80', pointerEvents: 'none' }}>$</span>
-                      <input type="number" min={0} step={0.01} value={card.price ?? ''} onChange={e => updatePrice(activeTab, card.id, e.target.value)} placeholder="—" style={{ width: '100%', padding: '4px 6px 4px 18px', background: card.price != null ? '#0e1a0e' : '#18181e', border: `1px solid ${card.price != null ? '#1a3a1a' : '#2a2a32'}`, borderRadius: 6, color: '#4ade80', fontSize: 13, outline: 'none' }} />
-                    </div>
-                  )}
-
-                  <button onClick={() => removeCard(activeTab, card.id)} style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid #2a2a32', background: 'transparent', color: '#444', cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#c0392b'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#c0392b'; }} onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#444'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#2a2a32'; }}>×</button>
-                  {/* empty 8th col (pagination select) */}
-                  <span />
-                </div>
-              );
-            })
+            <ListView
+              cards={pageCards}
+              activeTab={activeTab}
+              selectedCards={selected}
+              toggleSelect={toggleSelect}
+              removeCard={removeCard}
+              updateQty={updateQty}
+              updatePrice={updatePrice}
+              handleFindSingle={handleFindSingle}
+              handleImageMouseEnter={handleImageMouseEnter}
+              handleImageMouseLeave={handleImageMouseLeave}
+              viewMode={viewMode}
+          />
           )}
         </div>
 
