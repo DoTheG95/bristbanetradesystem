@@ -9,12 +9,12 @@ import { Suspense } from 'react';
 
 type TabType = 'incoming' | 'outgoing' | 'history';
 
-const STATUS_COLOURS: Record<TradeStatus, string> = {
-  pending:   '#f59e0b',
-  accepted:  '#4ade80',
-  declined:  '#c0392b',
-  cancelled: '#555',
-  countered: '#a78bfa',
+const STATUS_CLASS: Record<TradeStatus, string> = {
+  pending:   'ca-status-pending',
+  accepted:  'ca-status-accepted',
+  declined:  'ca-status-declined',
+  cancelled: 'ca-status-cancelled',
+  countered: 'ca-status-countered',
 };
 
 function OffersContent() {
@@ -255,34 +255,28 @@ const acceptTrade = useCallback(async (trade: Trade) => {
   const tabTrades = trades;
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0c0c0e', fontFamily: "'DM Sans', 'Segoe UI', sans-serif", color: '#e8e6e0' }}>
+    <div className="ca-page">
       <Navbar />
-      <div style={{ maxWidth: 780, margin: '0 auto', padding: '40px 24px' }}>
+      <div className="ca-container--wide">
 
         <div style={{ marginBottom: 28 }}>
-          <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.03em', margin: 0, color: '#e8e6e0' }}>Offers</h1>
-          <p style={{ fontSize: 14, color: '#555', marginTop: 6 }}>Manage your incoming and outgoing trade offers.</p>
+          <h1 className="ca-list-title">Offers</h1>
+          <p className="ca-list-subtitle" style={{ marginTop: 6 }}>Manage your incoming and outgoing trade offers.</p>
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: '#141418', borderRadius: 10, padding: 4, width: 'fit-content' }}>
+        <div className="ca-tabbar ca-tabbar--fit" style={{ marginBottom: 24 }}>
           {(['incoming', 'outgoing', 'history'] as TabType[]).map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} style={{
-              padding: '7px 20px', borderRadius: 7, border: 'none', fontSize: 13, fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s',
-              background: activeTab === tab ? '#1e1e28' : 'transparent',
-              color: activeTab === tab ? '#e8e6e0' : '#555',
-              boxShadow: activeTab === tab ? '0 1px 3px rgba(0,0,0,0.4)' : 'none',
-              textTransform: 'capitalize',
-            }}>{tab}</button>
+            <button key={tab} onClick={() => setActiveTab(tab)} className={`ca-tab ca-tab--capitalize${activeTab === tab ? ' is-active' : ''}`}>{tab}</button>
           ))}
         </div>
 
         {/* Trade list */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {loadingTrades ? (
-            <div style={{ padding: '48px 0', textAlign: 'center', color: '#444', fontSize: 13 }}>Loading…</div>
+            <div className="ca-simple-empty">Loading…</div>
           ) : tabTrades.length === 0 ? (
-            <div style={{ padding: '48px 0', textAlign: 'center', color: '#333', fontSize: 14 }}>No {activeTab} offers.</div>
+            <div className="ca-simple-empty ca-simple-empty--lg">No {activeTab} offers.</div>
           ) : tabTrades.map(trade => {
             const isExpanded   = expandedId === trade.id;
             const isSender     = trade.sender_id === userId;
@@ -293,30 +287,26 @@ const acceptTrade = useCallback(async (trade: Trade) => {
             const tradeMessages = messages[trade.id] ?? [];
 
             return (
-              <div key={trade.id} style={{ background: '#111115', border: `1px solid ${isExpanded ? '#2a2a3a' : '#1e1e24'}`, borderRadius: 12, overflow: 'hidden', transition: 'border-color 0.15s' }}>
+              <div key={trade.id} className={`ca-trade-card${isExpanded ? ' is-expanded' : ''}`}>
 
                 {/* Trade row header */}
                 <div
                   onClick={() => setExpandedId(isExpanded ? null : trade.id)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', cursor: 'pointer' }}
+                  className="ca-trade-row"
                 >
                   {/* Avatar */}
-                  <div style={{
-                    width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
-                    background: `hsl(${(otherName?.charCodeAt(0) ?? 0) * 7 % 360}, 40%, 18%)`,
-                    border: `2px solid hsl(${(otherName?.charCodeAt(0) ?? 0) * 7 % 360}, 55%, 32%)`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 13, fontWeight: 700,
-                    color: `hsl(${(otherName?.charCodeAt(0) ?? 0) * 7 % 360}, 75%, 65%)`,
-                  }}>
+                  <div
+                    className="ca-avatar ca-avatar--lg"
+                    style={{ '--ca-hue': ((otherName?.charCodeAt(0) ?? 0) * 7) % 360 } as React.CSSProperties}
+                  >
                     {(otherName ?? '?').charAt(0).toUpperCase()}
                   </div>
 
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#e8e6e0' }}>
+                  <div className="ca-trader-info">
+                    <div className="ca-trader-name">
                       {isSender ? `To: ${otherName}` : `From: ${otherName}`}
                     </div>
-                    <div style={{ fontSize: 11, color: '#444', marginTop: 2 }}>
+                    <div className="ca-trade-meta">
                       {(trade.items ?? []).length} card{(trade.items ?? []).length !== 1 ? 's' : ''}
                       {trade.meet_date ? ` · ${trade.meet_date}` : ''}
                       {' · '}{new Date(trade.created_at).toLocaleDateString()}
@@ -324,41 +314,41 @@ const acceptTrade = useCallback(async (trade: Trade) => {
                   </div>
 
                   {/* Card thumbnails */}
-                  <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+                  <div className="ca-trade-thumbs">
                     {(trade.items ?? []).slice(0, 4).map(item => (
-                      <img key={item.id} src={`https://tcgplayer-cdn.tcgplayer.com/product/${item.tcgplayer_id}_in_200x200.jpg`} alt={item.tcgplayer_name} style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 3 }} />
+                      <img key={item.id} src={`https://tcgplayer-cdn.tcgplayer.com/product/${item.tcgplayer_id}_in_200x200.jpg`} alt={item.tcgplayer_name} className="ca-mini-card-thumb" />
                     ))}
-                    {(trade.items ?? []).length > 4 && <div style={{ width: 28, height: 28, borderRadius: 3, background: '#1e1e28', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: '#555' }}>+{(trade.items ?? []).length - 4}</div>}
+                    {(trade.items ?? []).length > 4 && <div className="ca-trade-thumb-more">+{(trade.items ?? []).length - 4}</div>}
                   </div>
 
                   {/* Status badge */}
-                  <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: STATUS_COLOURS[trade.status], flexShrink: 0 }}>
+                  <span className={`ca-trade-status ${STATUS_CLASS[trade.status]}`}>
                     {trade.status}
                   </span>
 
-                  <span style={{ color: '#333', fontSize: 12, flexShrink: 0 }}>{isExpanded ? '▲' : '▼'}</span>
+                  <span className="ca-trade-chevron">{isExpanded ? '▲' : '▼'}</span>
                 </div>
 
                 {/* Expanded detail */}
                 {isExpanded && (
-                  <div style={{ borderTop: '1px solid #1e1e24', padding: '16px' }}>
+                  <div className="ca-trade-detail">
 
                     {/* Items breakdown */}
-                    <div style={{ display: 'grid', gridTemplateColumns: theirItems.length > 0 && myItems.length > 0 ? '1fr 1fr' : '1fr', gap: 12, marginBottom: 16 }}>
+                    <div className={`ca-trade-items-grid${!(theirItems.length > 0 && myItems.length > 0) ? ' ca-trade-items-grid--single' : ''}`}>
                       {theirItems.length > 0 && (
                         <div>
-                          <div style={{ fontSize: 10, fontWeight: 600, color: '#4f46e5', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+                          <div className="ca-match-section-label ca-match-section-label--theirs">
                             {isSender ? 'Requesting from them' : 'They want from you'}
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                             {theirItems.map(item => (
-                              <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 8px', background: '#16161c', borderRadius: 6 }}>
-                                <img src={`https://tcgplayer-cdn.tcgplayer.com/product/${item.tcgplayer_id}_in_200x200.jpg`} alt={item.tcgplayer_name} style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }} />
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                  <div style={{ fontSize: 12, color: '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.tcgplayer_name}</div>
-                                  <div style={{ fontSize: 10, color: '#444', fontFamily: 'monospace' }}>{item.card_number}</div>
+                              <div key={item.id} className="ca-mini-card-row">
+                                <img src={`https://tcgplayer-cdn.tcgplayer.com/product/${item.tcgplayer_id}_in_200x200.jpg`} alt={item.tcgplayer_name} className="ca-mini-card-thumb" />
+                                <div className="ca-mini-card-info">
+                                  <div className="ca-mini-card-name">{item.tcgplayer_name}</div>
+                                  <div className="ca-mini-card-number">{item.card_number}</div>
                                 </div>
-                                {item.qty != null && <span style={{ fontSize: 10, color: '#555', flexShrink: 0 }}>×{item.qty}</span>}
+                                {item.qty != null && <span className="ca-mini-card-qty">×{item.qty}</span>}
                               </div>
                             ))}
                           </div>
@@ -367,18 +357,18 @@ const acceptTrade = useCallback(async (trade: Trade) => {
 
                       {myItems.length > 0 && (
                         <div>
-                          <div style={{ fontSize: 10, fontWeight: 600, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+                          <div className="ca-match-section-label ca-match-section-label--mine">
                             {isSender ? 'You are offering' : 'They are offering'}
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                             {myItems.map(item => (
-                              <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 8px', background: '#16161c', border: '1px solid #2a2218', borderRadius: 6 }}>
-                                <img src={`https://tcgplayer-cdn.tcgplayer.com/product/${item.tcgplayer_id}_in_200x200.jpg`} alt={item.tcgplayer_name} style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }} />
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                  <div style={{ fontSize: 12, color: '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.tcgplayer_name}</div>
-                                  <div style={{ fontSize: 10, color: '#444', fontFamily: 'monospace' }}>{item.card_number}</div>
+                              <div key={item.id} className="ca-mini-card-row ca-mini-card-row--outlined">
+                                <img src={`https://tcgplayer-cdn.tcgplayer.com/product/${item.tcgplayer_id}_in_200x200.jpg`} alt={item.tcgplayer_name} className="ca-mini-card-thumb" />
+                                <div className="ca-mini-card-info">
+                                  <div className="ca-mini-card-name">{item.tcgplayer_name}</div>
+                                  <div className="ca-mini-card-number">{item.card_number}</div>
                                 </div>
-                                {item.qty != null && <span style={{ fontSize: 10, color: '#555', flexShrink: 0 }}>×{item.qty}</span>}
+                                {item.qty != null && <span className="ca-mini-card-qty">×{item.qty}</span>}
                               </div>
                             ))}
                           </div>
@@ -388,16 +378,16 @@ const acceptTrade = useCallback(async (trade: Trade) => {
 
                     {/* Message thread */}
                     <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Messages</div>
-                      <div style={{ background: '#0e0e12', borderRadius: 8, padding: '10px', maxHeight: 180, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div className="ca-modal-section-label ca-modal-section-label--muted">Messages</div>
+                      <div className="ca-message-thread">
                         {tradeMessages.length === 0 ? (
-                          <div style={{ fontSize: 12, color: '#333', textAlign: 'center', padding: '12px 0' }}>No messages yet.</div>
+                          <div style={{ fontSize: 12, color: 'var(--ca-text-shadow)', textAlign: 'center', padding: '12px 0' }}>No messages yet.</div>
                         ) : tradeMessages.map(msg => {
                           const isMe = msg.sender_id === userId;
                           return (
-                            <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
-                              <div style={{ fontSize: 10, color: '#444', marginBottom: 2 }}>{isMe ? 'You' : msg.sender_display_name}</div>
-                              <div style={{ fontSize: 12, color: '#d4d2cc', background: isMe ? '#1e1e30' : '#18181e', padding: '6px 10px', borderRadius: 8, maxWidth: '80%' }}>
+                            <div key={msg.id} className={`ca-message-row${isMe ? ' is-mine' : ''}`}>
+                              <div className="ca-message-sender">{isMe ? 'You' : msg.sender_display_name}</div>
+                              <div className={`ca-message-bubble${isMe ? ' is-mine' : ''}`}>
                                 {msg.message}
                               </div>
                             </div>
@@ -406,19 +396,19 @@ const acceptTrade = useCallback(async (trade: Trade) => {
                         <div ref={msgEndRef} />
                       </div>
                       {(trade.status === 'pending' || trade.status === 'countered') && (
-                        <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                        <div className="ca-message-input-row">
                           <input
                             type="text"
                             value={newMessage}
                             onChange={e => setNewMessage(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && sendMessage(trade.id, trade)}
                             placeholder="Send a message…"
-                            style={{ flex: 1, padding: '6px 10px', background: '#18181e', border: '1px solid #2a2a32', borderRadius: 7, color: '#d4d2cc', fontSize: 12, outline: 'none' }}
+                            className="ca-message-input"
                           />
                           <button
                             onClick={() => sendMessage(trade.id, trade)}
                             disabled={sendingMsg || !newMessage.trim()}
-                            style={{ padding: '6px 14px', borderRadius: 7, border: 'none', background: '#4f46e5', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                            className="ca-message-send-btn"
                           >
                             {sendingMsg ? '…' : '→'}
                           </button>
@@ -428,11 +418,11 @@ const acceptTrade = useCallback(async (trade: Trade) => {
 
                     {/* Action buttons */}
                     {trade.status === 'pending' && (
-                      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                      <div className="ca-trade-actions">
                         <button
                           onClick={() => cancelTrade(trade)}
                           disabled={isActioning}
-                          style={{ padding: '7px 16px', borderRadius: 7, border: '1px solid #2a2a32', background: 'transparent', color: '#555', fontSize: 12, cursor: 'pointer' }}
+                          className="ca-btn ca-btn-ghost ca-btn-md"
                         >Cancel</button>
 
                         {!isSender && (
@@ -440,17 +430,18 @@ const acceptTrade = useCallback(async (trade: Trade) => {
                             <button
                               onClick={() => { setCounterTrade(trade); setCounterDate(trade.meet_date ?? ''); }}
                               disabled={isActioning}
-                              style={{ padding: '7px 16px', borderRadius: 7, border: '1px solid #a78bfa', background: 'transparent', color: '#a78bfa', fontSize: 12, cursor: 'pointer' }}
+                              className="ca-btn ca-btn-purple ca-btn-md"
                             >Counter</button>
                             <button
                               onClick={() => declineTrade(trade)}
                               disabled={isActioning}
-                              style={{ padding: '7px 16px', borderRadius: 7, border: '1px solid #c0392b', background: 'transparent', color: '#c0392b', fontSize: 12, cursor: 'pointer' }}
+                              className="ca-btn ca-btn-outline-danger ca-btn-md"
                             >Decline</button>
                             <button
                               onClick={() => acceptTrade(trade)}
                               disabled={isActioning}
-                              style={{ padding: '7px 20px', borderRadius: 7, border: 'none', background: isActioning ? '#1e1e28' : '#4ade80', color: isActioning ? '#444' : '#000', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                              className="ca-btn ca-btn-success"
+                              style={{ padding: '7px 20px' }}
                             >{isActioning ? '…' : 'Accept'}</button>
                           </>
                         )}
@@ -458,10 +449,10 @@ const acceptTrade = useCallback(async (trade: Trade) => {
                     )}
 
                     {trade.status === 'countered' && (
-                      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                        <button onClick={() => cancelTrade(trade)} disabled={isActioning} style={{ padding: '7px 16px', borderRadius: 7, border: '1px solid #2a2a32', background: 'transparent', color: '#555', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
+                      <div className="ca-trade-actions">
+                        <button onClick={() => cancelTrade(trade)} disabled={isActioning} className="ca-btn ca-btn-ghost ca-btn-md">Cancel</button>
                         {isSender && (
-                          <button onClick={() => acceptTrade(trade)} disabled={isActioning} style={{ padding: '7px 20px', borderRadius: 7, border: 'none', background: '#4ade80', color: '#000', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                          <button onClick={() => acceptTrade(trade)} disabled={isActioning} className="ca-btn ca-btn-success" style={{ padding: '7px 20px' }}>
                             {isActioning ? '…' : 'Accept Counter'}
                           </button>
                         )}
@@ -477,35 +468,29 @@ const acceptTrade = useCallback(async (trade: Trade) => {
 
       {/* Counter-offer modal */}
       {counterTrade && (
-        <div onClick={() => setCounterTrade(null)} style={{ position: 'fixed', inset: 0, zIndex: 10002, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 420, background: '#111115', border: '1px solid #1e1e24', borderRadius: 14, padding: 24, boxShadow: '0 32px 80px rgba(0,0,0,0.8)', animation: 'modalIn 0.18s ease' }}>
-            <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: '#e8e6e0' }}>Send Counter-Offer</h3>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Your message</div>
+        <div onClick={() => setCounterTrade(null)} className="ca-modal-overlay">
+          <div onClick={e => e.stopPropagation()} className="ca-modal ca-modal--sm" style={{ padding: 24 }}>
+            <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: 'var(--ca-text)' }}>Send Counter-Offer</h3>
+            <div className="ca-modal-section-label ca-modal-section-label--muted">Your message</div>
             <textarea
               value={counterMsg}
               onChange={e => setCounterMsg(e.target.value)}
               placeholder="Explain your counter-offer…"
               rows={3}
-              style={{ width: '100%', padding: '8px 10px', background: '#18181e', border: '1px solid #2a2a32', borderRadius: 7, color: '#d4d2cc', fontSize: 13, outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 12 }}
+              className="ca-textarea"
+              style={{ marginBottom: 12 }}
             />
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Proposed date (optional)</div>
-            <input type="date" value={counterDate} onChange={e => setCounterDate(e.target.value)} style={{ padding: '6px 10px', background: '#18181e', border: '1px solid #2a2a32', borderRadius: 7, color: '#d4d2cc', fontSize: 13, outline: 'none', colorScheme: 'dark', marginBottom: 16 }} />
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setCounterTrade(null)} style={{ padding: '7px 16px', borderRadius: 7, border: '1px solid #2a2a32', background: 'transparent', color: '#888', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
-              <button onClick={submitCounter} disabled={submittingCounter} style={{ padding: '7px 20px', borderRadius: 7, border: 'none', background: '#a78bfa', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+            <div className="ca-modal-section-label ca-modal-section-label--muted">Proposed date (optional)</div>
+            <input type="date" value={counterDate} onChange={e => setCounterDate(e.target.value)} className="ca-date-input" style={{ marginBottom: 16 }} />
+            <div className="ca-trade-actions">
+              <button onClick={() => setCounterTrade(null)} className="ca-btn ca-btn-ghost ca-btn-md">Cancel</button>
+              <button onClick={submitCounter} disabled={submittingCounter} className="ca-btn ca-btn-purple-solid ca-btn-md">
                 {submittingCounter ? 'Sending…' : 'Send Counter'}
               </button>
             </div>
           </div>
         </div>
       )}
-
-      <style>{`
-        @keyframes modalIn {
-          from { opacity: 0; transform: scale(0.96) translateY(8px); }
-          to   { opacity: 1; transform: scale(1) translateY(0); }
-        }
-      `}</style>
     </div>
   );
 }

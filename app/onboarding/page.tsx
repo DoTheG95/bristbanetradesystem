@@ -10,7 +10,6 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -70,16 +69,16 @@ export default function OnboardingPage() {
   if (checking) return null;
 
   return (
-    <div style={styles.page}>
-      <div style={styles.orbTopLeft} />
-      <div style={styles.orbBottomRight} />
+    <div className="ca-auth-shell">
+      <div className="ca-auth-orb ca-auth-orb--tl" />
+      <div className="ca-auth-orb ca-auth-orb--br" />
 
-      <main style={styles.main}>
-        <div style={styles.card}>
+      <main className="ca-auth-main">
+        <div className="ca-auth-card">
 
-          <div style={styles.header}>
-            <h1 style={styles.title}>Welcome 👋</h1>
-            <p style={styles.subtitle}>Choose a display name to get started. You can change this later.</p>
+          <div className="ca-auth-header">
+            <h1 className="ca-auth-title">Welcome 👋</h1>
+            <p className="ca-auth-subtitle">Choose a display name to get started. You can change this later.</p>
           </div>
 
           <input
@@ -90,23 +89,20 @@ export default function OnboardingPage() {
             onKeyDown={handleKeyDown}
             maxLength={32}
             autoFocus
-            style={styles.input}
-            onFocus={(e) => (e.currentTarget.style.borderColor = 'rgba(99,102,241,0.6)')}
-            onBlur={(e) => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)')}
+            className="ca-auth-input"
           />
 
-          <div style={styles.charCount}>
+          <div className="ca-auth-char-count">
             {displayName.length}/32
           </div>
 
-          {error && <p style={styles.errorText}>{error}</p>}
+          {error && <p className="ca-auth-error">{error}</p>}
 
           <button
             onClick={handleSubmit}
             disabled={loading}
-            style={{ ...styles.btnPrimary, ...(loading ? styles.btnPrimaryDisabled : {}) }}
-            onMouseEnter={(e) => { if (!loading) (e.currentTarget as HTMLButtonElement).style.background = '#5254cc'; }}
-            onMouseLeave={(e) => { if (!loading) (e.currentTarget as HTMLButtonElement).style.background = '#6366f1'; }}
+            className="ca-auth-btn-primary"
+            style={{ marginTop: 20 }}
           >
             {loading ? 'Saving…' : 'Continue'}
           </button>
@@ -116,111 +112,3 @@ export default function OnboardingPage() {
     </div>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  page: {
-    position: 'relative',
-    minHeight: '100vh',
-    background: '#0d0d0f',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  },
-  orbTopLeft: {
-    position: 'absolute',
-    width: '600px',
-    height: '600px',
-    borderRadius: '50%',
-    background: 'radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%)',
-    top: '-200px',
-    left: '-200px',
-    pointerEvents: 'none',
-  },
-  orbBottomRight: {
-    position: 'absolute',
-    width: '500px',
-    height: '500px',
-    borderRadius: '50%',
-    background: 'radial-gradient(circle, rgba(24,119,242,0.08) 0%, transparent 70%)',
-    bottom: '-150px',
-    right: '-150px',
-    pointerEvents: 'none',
-  },
-  main: {
-    position: 'relative',
-    zIndex: 1,
-    width: '100%',
-    maxWidth: '420px',
-    padding: '24px 16px',
-  },
-  card: {
-    background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: '20px',
-    padding: '36px 32px',
-    backdropFilter: 'blur(24px)',
-    WebkitBackdropFilter: 'blur(24px)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0px',
-  },
-  header: {
-    marginBottom: '24px',
-  },
-  title: {
-    fontSize: '22px',
-    fontWeight: 600,
-    color: '#ffffff',
-    margin: '0 0 8px 0',
-  },
-  subtitle: {
-    fontSize: '14px',
-    color: 'rgba(255,255,255,0.35)',
-    margin: 0,
-    lineHeight: 1.5,
-  },
-  input: {
-    width: '100%',
-    padding: '12px 16px',
-    background: 'rgba(255,255,255,0.05)',
-    border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: '10px',
-    color: '#ffffff',
-    fontSize: '14px',
-    fontFamily: 'inherit',
-    outline: 'none',
-    transition: 'border-color 0.2s',
-    boxSizing: 'border-box',
-  },
-  charCount: {
-    fontSize: '11px',
-    color: 'rgba(255,255,255,0.2)',
-    textAlign: 'right',
-    marginTop: '6px',
-  },
-  errorText: {
-    marginTop: '10px',
-    fontSize: '13px',
-    color: '#f87171',
-  },
-  btnPrimary: {
-    marginTop: '20px',
-    width: '100%',
-    padding: '13px',
-    background: '#6366f1',
-    color: '#ffffff',
-    border: 'none',
-    borderRadius: '10px',
-    fontSize: '15px',
-    fontWeight: 600,
-    fontFamily: 'inherit',
-    cursor: 'pointer',
-    transition: 'background 0.2s',
-  },
-  btnPrimaryDisabled: {
-    background: 'rgba(99,102,241,0.4)',
-    cursor: 'not-allowed',
-  },
-};

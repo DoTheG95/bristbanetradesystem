@@ -52,9 +52,7 @@ function matchesSpecialFilter(name: string, filters: Set<SpecialVariant>): boole
   return false;
 }
 
-const RARITY_COLOURS: Record<string, string> = {
-  C: '#555', U: '#4a7a6a', R: '#4f6fa8', SR: '#7c5abf', UR: '#b8860b', SEC: '#c0392b', P: '#888',
-};
+const rarityClass = (rarity: string) => rarity ? `ca-rarity-${rarity.toLowerCase()}` : '';
 
 export default function SearchModal({ open, onClose, onAdd }: Props) {
   const [mode, setMode]                     = useState<Mode>('search');
@@ -229,7 +227,7 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
       }))
     );
   };
-  
+
   const decrementAllQty = () => {
     setSelectedItems(prev =>
       prev.map(p => {
@@ -252,12 +250,12 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
 
   const handleBulkQtyChange = (val: string) => {
     setBulkQtyInput(val);
-  
+
     if (val.trim() === '') {
       setAllQty(null); // reset to "unset"
       return;
     }
-  
+
     const num = Number(val);
     if (!Number.isNaN(num) && num >= 0) {
       setAllQty(num);
@@ -330,49 +328,35 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
   const allVisibleSelected = filteredPackResults.length > 0 && filteredPackResults.every(c => bulkSelected.has(c.tcgplayer_id));
   const hasSelected        = selectedItems.length > 0;
 
+  const modalSizeClass = mode === 'bulk' ? 'ca-searchmodal--bulk' : hasSelected ? 'ca-searchmodal--split' : 'ca-searchmodal--compact';
+
   return (
     <div
       onClick={onClose}
-      style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.75)' }}
+      className="ca-modal-overlay"
+      style={{ background: 'rgba(0,0,0,0.75)' }}
     >
       <div
         onClick={e => e.stopPropagation()}
-        style={{
-          maxWidth: mode === 'bulk'
-            ? 1200
-            : hasSelected
-              ? 980
-              : 560,
-          width: '95vw',
-          maxHeight: '90vh',
-          background: '#111115',
-          border: '1px solid #2a2a32',
-          borderRadius: 14,
-          boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
-          fontFamily: "'DM Sans','Segoe UI',sans-serif",
-          display: 'flex',
-          flexDirection: 'column',
-          transition: 'max-width 0.2s ease',
-          overflow: 'hidden',
-        }}
+        className={`ca-searchmodal ${modalSizeClass}`}
       >
         {/* ── Header ── */}
-        <div style={{ padding: '14px 20px 0', borderBottom: '1px solid #1e1e24', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <div style={{ display: 'flex', gap: 2, background: '#0e0e12', borderRadius: 8, padding: 3 }}>
+        <div className="ca-searchmodal-header">
+          <div className="ca-searchmodal-header-row">
+            <div className="ca-mode-tabbar">
               {(['search', 'bulk'] as Mode[]).map(m => (
-                <button key={m} onClick={() => setMode(m)} style={{ padding: '5px 16px', borderRadius: 6, border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', background: mode === m ? '#1e1e28' : 'transparent', color: mode === m ? '#e8e6e0' : '#555' }}>
+                <button key={m} onClick={() => setMode(m)} className={`ca-mode-tab${mode === m ? ' is-active' : ''}`}>
                   {m === 'search' ? '🔍 Search' : '📦 Add Bulk'}
                 </button>
               ))}
             </div>
-            <button onClick={onClose} style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid #2a2a32', background: 'transparent', color: '#555', cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+            <button onClick={onClose} className="ca-icon-btn ca-icon-btn--sm">×</button>
           </div>
 
           {/* Search input */}
           {mode === 'search' && (
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', paddingBottom: 14 }}>
-              <svg style={{ position: 'absolute', left: 10, width: 14, height: 14, color: '#444', pointerEvents: 'none' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <div className="ca-searchmodal-input-wrap">
+              <svg className="ca-searchmodal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
               </svg>
               <input
@@ -380,40 +364,40 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
                 value={modalText}
                 onChange={e => setModalText(e.target.value)}
                 placeholder="Type to search cards…"
-                style={{ width: '100%', padding: '9px 36px 9px 32px', background: '#18181e', border: '1px solid #2a2a32', borderRadius: 8, color: '#e8e6e0', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
+                className="ca-searchmodal-input"
               />
-              {loadingResults && <div style={{ position: 'absolute', right: 10, width: 14, height: 14, border: '2px solid #2a2a32', borderTopColor: '#4f46e5', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />}
+              {loadingResults && <span className="ca-searchmodal-spinner"><span className="ca-spinner" /></span>}
             </div>
           )}
 
           {/* Bulk header */}
           {mode === 'bulk' && (
             <div style={{ paddingBottom: 14 }}>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                <input ref={packInputRef} value={packQuery} onChange={e => setPackQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && searchPack()} placeholder="Pack code, e.g. BT18" style={{ flex: 1, padding: '8px 12px', background: '#18181e', border: '1px solid #2a2a32', borderRadius: 8, color: '#e8e6e0', fontSize: 13, outline: 'none', fontFamily: 'inherit' }} />
-                <button onClick={searchPack} disabled={loadingPack || !packQuery.trim()} style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: loadingPack || !packQuery.trim() ? '#1e1e28' : '#4f46e5', color: loadingPack || !packQuery.trim() ? '#444' : '#fff', fontSize: 13, fontWeight: 600, cursor: loadingPack || !packQuery.trim() ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
-                  {loadingPack ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ display: 'inline-block', width: 12, height: 12, border: '2px solid #444', borderTopColor: '#888', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />Loading…</span> : 'Search Pack'}
+              <div className="ca-bulk-search-row">
+                <input ref={packInputRef} value={packQuery} onChange={e => setPackQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && searchPack()} placeholder="Pack code, e.g. BT18" className="ca-pack-input" />
+                <button onClick={searchPack} disabled={loadingPack || !packQuery.trim()} className="ca-pack-search-btn">
+                  {loadingPack ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span className="ca-spinner ca-spinner--light" style={{ width: 12, height: 12 }} />Loading…</span> : 'Search Pack'}
                 </button>
               </div>
               {packResults.length > 0 && (
                 <>
-                  <div style={{ marginBottom: 8 }}>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: '#444', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Rarity</div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                      {RARITIES.map(r => { const active = rarityFilters.has(r); return <button key={r} onClick={() => toggleRarity(r)} style={{ padding: '3px 10px', borderRadius: 99, border: `1px solid ${active ? RARITY_COLOURS[r] : '#2a2a32'}`, background: active ? `${RARITY_COLOURS[r]}22` : 'transparent', color: active ? RARITY_COLOURS[r] : '#555', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>{r}</button>; })}
-                      {rarityFilters.size > 0 && <button onClick={() => setRarityFilters(new Set())} style={{ padding: '3px 8px', borderRadius: 99, border: '1px solid #2a2a32', background: 'transparent', color: '#444', fontSize: 11, cursor: 'pointer' }}>clear</button>}
+                  <div className="ca-filter-section">
+                    <div className="ca-th-label" style={{ marginBottom: 6 }}>Rarity</div>
+                    <div className="ca-filter-pills">
+                      {RARITIES.map(r => { const active = rarityFilters.has(r); return <button key={r} onClick={() => toggleRarity(r)} className={`ca-rarity-pill-filter${active ? ` is-active ${rarityClass(r)}` : ''}`}>{r}</button>; })}
+                      {rarityFilters.size > 0 && <button onClick={() => setRarityFilters(new Set())} className="ca-filter-clear-btn">clear</button>}
                     </div>
                   </div>
-                  <div style={{ marginBottom: 8 }}>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: '#444', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Special Variants</div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                      {SPECIAL_VARIANTS.map(s => { const active = specialFilters.has(s); return <button key={s} onClick={() => toggleSpecial(s)} style={{ padding: '3px 10px', borderRadius: 99, border: `1px solid ${active ? '#a78bfa' : '#2a2a32'}`, background: active ? '#a78bfa22' : 'transparent', color: active ? '#a78bfa' : '#555', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>{s}</button>; })}
-                      {specialFilters.size > 0 && <button onClick={() => setSpecialFilters(new Set())} style={{ padding: '3px 8px', borderRadius: 99, border: '1px solid #2a2a32', background: 'transparent', color: '#444', fontSize: 11, cursor: 'pointer' }}>clear</button>}
+                  <div className="ca-filter-section">
+                    <div className="ca-th-label" style={{ marginBottom: 6 }}>Special Variants</div>
+                    <div className="ca-filter-pills">
+                      {SPECIAL_VARIANTS.map(s => { const active = specialFilters.has(s); return <button key={s} onClick={() => toggleSpecial(s)} className={`ca-special-pill-filter${active ? ' is-active' : ''}`}>{s}</button>; })}
+                      {specialFilters.size > 0 && <button onClick={() => setSpecialFilters(new Set())} className="ca-filter-clear-btn">clear</button>}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 4 }}>
-                    <span style={{ fontSize: 11, color: '#444' }}>{filteredPackResults.length} card{filteredPackResults.length !== 1 ? 's' : ''} shown{bulkSelected.size > 0 && ` · ${bulkSelected.size} selected`}</span>
-                    <button onClick={allVisibleSelected ? deselectAllVisible : selectAllVisible} style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid #2a2a32', background: 'transparent', color: '#888', fontSize: 11, cursor: 'pointer' }}>{allVisibleSelected ? 'Deselect all' : 'Select all'}</button>
+                  <div className="ca-filter-summary-row">
+                    <span className="ca-filter-count">{filteredPackResults.length} card{filteredPackResults.length !== 1 ? 's' : ''} shown{bulkSelected.size > 0 && ` · ${bulkSelected.size} selected`}</span>
+                    <button onClick={allVisibleSelected ? deselectAllVisible : selectAllVisible} className="ca-select-all-btn">{allVisibleSelected ? 'Deselect all' : 'Select all'}</button>
                   </div>
                 </>
               )}
@@ -422,15 +406,15 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
         </div>
 
         {/* ── Body: two-column when items selected (search mode) ── */}
-        <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+        <div className="ca-searchmodal-body">
 
           {/* Left: results / bulk grid */}
-          <div style={{ flex: 1, overflowY: 'auto', borderRight: hasSelected && mode === 'search' ? '1px solid #1e1e24' : 'none' }}>
+          <div className={`ca-searchmodal-results${hasSelected && mode === 'search' ? ' ca-searchmodal-results--bordered' : ''}`}>
 
             {/* Search results */}
             {mode === 'search' && modalText.trim().length > 0 && (
               <>
-                {!loadingResults && results.length === 0 && <div style={{ padding: '20px', fontSize: 13, color: '#444', textAlign: 'center' }}>No results</div>}
+                {!loadingResults && results.length === 0 && <div className="ca-searchmodal-hint">No results</div>}
                 {results.map(r => {
                   const alreadySelected = selectedItems.some(p => p.id === r.id);
                   const imgSrc = r.tcgplayer_id ? `https://tcgplayer-cdn.tcgplayer.com/product/${r.tcgplayer_id}_in_200x200.jpg` : null;
@@ -438,23 +422,21 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
                     <button
                       key={r.tcgplayer_id || r.id}
                       onClick={() => { if (!alreadySelected) addItem(r); }}
-                      style={{ width: '100%', textAlign: 'left', padding: '8px 16px', background: alreadySelected ? '#141420' : 'transparent', border: 'none', borderBottom: '1px solid #18181e', cursor: alreadySelected ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
-                      onMouseEnter={e => { if (!alreadySelected) (e.currentTarget as HTMLButtonElement).style.background = '#1a1a22'; }}
-                      onMouseLeave={e => { if (!alreadySelected) (e.currentTarget as HTMLButtonElement).style.background = alreadySelected ? '#141420' : 'transparent'; }}
+                      className={`ca-result-row${alreadySelected ? ' is-added' : ''}`}
                     >
-                      <div style={{ width: 44, height: 44, flexShrink: 0, borderRadius: 4, overflow: 'hidden', background: '#18181e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {imgSrc ? <img src={imgSrc} alt={r.tcgplayer_name} style={{ width: 44, height: 44, objectFit: 'contain' }} /> : <span style={{ fontSize: 10, color: '#333' }}>—</span>}
+                      <div className="ca-result-thumb-wrap">
+                        {imgSrc ? <img src={imgSrc} alt={r.tcgplayer_name} className="ca-result-thumb" /> : <span className="ca-result-thumb-placeholder">—</span>}
                       </div>
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: alreadySelected ? '#555' : '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.tcgplayer_name || r.id}</div>
-                        <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
-                          {r.card_number && <span style={{ fontSize: 11, fontFamily: 'monospace', color: alreadySelected ? '#444' : '#555' }}>{r.card_number}</span>}
-                          {r.rarity && <span style={{ fontSize: 10, fontWeight: 700, color: RARITY_COLOURS[r.rarity] ?? '#555' }}>{r.rarity}</span>}
+                      <div className="ca-result-info">
+                        <div className={`ca-result-name${alreadySelected ? ' is-added' : ''}`}>{r.tcgplayer_name || r.id}</div>
+                        <div className="ca-result-meta-row">
+                          {r.card_number && <span className={`ca-result-number${alreadySelected ? ' is-added' : ''}`}>{r.card_number}</span>}
+                          {r.rarity && <span className={`ca-result-rarity ${rarityClass(r.rarity)}`}>{r.rarity}</span>}
                         </div>
                       </div>
                       {alreadySelected
-                        ? <span style={{ fontSize: 11, color: '#4f46e5', flexShrink: 0 }}>added</span>
-                        : <span style={{ fontSize: 18, color: '#333', flexShrink: 0 }}>+</span>}
+                        ? <span className="ca-result-indicator is-added">added</span>
+                        : <span className="ca-result-indicator">+</span>}
                     </button>
                   );
                 })}
@@ -462,129 +444,107 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
             )}
 
             {mode === 'search' && modalText.trim().length === 0 && !hasSelected && (
-              <div style={{ padding: '28px 20px', textAlign: 'center', color: '#333', fontSize: 13 }}>Start typing to search cards</div>
+              <div className="ca-searchmodal-hint">Start typing to search cards</div>
             )}
             {mode === 'search' && modalText.trim().length === 0 && hasSelected && (
-              <div style={{ padding: '20px', textAlign: 'center', color: '#333', fontSize: 13 }}>Search for more cards to add →</div>
+              <div className="ca-searchmodal-hint ca-searchmodal-hint--sm">Search for more cards to add →</div>
             )}
 
             {/* Bulk */}
-            {mode === 'bulk' && packError && <div style={{ padding: '24px 20px', textAlign: 'center', color: '#c0392b', fontSize: 13 }}>{packError}</div>}
-            {mode === 'bulk' && !packError && packResults.length === 0 && !loadingPack && <div style={{ padding: '28px 20px', textAlign: 'center', color: '#333', fontSize: 13 }}>Enter a pack code above to load all cards from that set.</div>}
+            {mode === 'bulk' && packError && <div className="ca-searchmodal-hint" style={{ color: 'var(--ca-red)' }}>{packError}</div>}
+            {mode === 'bulk' && !packError && packResults.length === 0 && !loadingPack && <div className="ca-searchmodal-hint">Enter a pack code above to load all cards from that set.</div>}
             {mode === 'bulk' && filteredPackResults.length > 0 && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 8, padding: '12px 16px' }}>
+              <div className="ca-bulk-grid">
                 {filteredPackResults.map(card => {
                   const sel = bulkSelected.has(card.tcgplayer_id);
-                  const rColor = RARITY_COLOURS[card.rarity] ?? '#555';
                   const parenText = extractParenText(card.tcgplayer_name);
                   return (
-                    <div key={card.tcgplayer_id} onClick={() => toggleBulkCard(card.tcgplayer_id)} style={{ position: 'relative', borderRadius: 8, border: `2px solid ${sel ? '#4f46e5' : '#1e1e24'}`, background: sel ? '#16182a' : '#16161c', cursor: 'pointer', transition: 'all 0.12s', overflow: 'hidden', padding: '6px 6px 4px' }} onMouseEnter={e => { if (!sel) e.currentTarget.style.borderColor = '#2a2a3a'; }} onMouseLeave={e => { if (!sel) e.currentTarget.style.borderColor = '#1e1e24'; }}>
-                      <div style={{ position: 'absolute', top: 5, right: 5, zIndex: 2, width: 16, height: 16, borderRadius: 4, border: `1.5px solid ${sel ? '#4f46e5' : '#2a2a32'}`, background: sel ? '#4f46e5' : 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {sel && <span style={{ color: '#fff', fontSize: 9, lineHeight: 1 }}>✓</span>}
+                    <div key={card.tcgplayer_id} onClick={() => toggleBulkCard(card.tcgplayer_id)} className={`ca-bulk-tile${sel ? ' is-selected' : ''}`}>
+                      <div className={`ca-bulk-tile-check${sel ? ' is-selected' : ''}`}>
+                        {sel && <span className="ca-checkbox-mark">✓</span>}
                       </div>
-                      <img src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`} alt={card.tcgplayer_name} style={{ width: '100%', aspectRatio: '1/1', objectFit: 'contain', borderRadius: 4, display: 'block' }} />
-                      <div style={{ fontSize: 9, color: '#555', fontFamily: 'monospace', marginTop: 3, textAlign: 'center' }}>{card.card_name}</div>
-                      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 3, marginTop: 2 }}>
-                        <span style={{ fontSize: 9, fontWeight: 700, color: rColor }}>{card.rarity}</span>
-                        {parenText && <span style={{ fontSize: 8, color: '#a78bfa', fontStyle: 'italic', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 60 }}>{parenText}</span>}
+                      <img src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`} alt={card.tcgplayer_name} className="ca-bulk-tile-img" />
+                      <div className="ca-bulk-tile-name">{card.card_name}</div>
+                      <div className="ca-bulk-tile-meta-row">
+                        <span className={`ca-bulk-tile-rarity ${rarityClass(card.rarity)}`}>{card.rarity}</span>
+                        {parenText && <span className="ca-bulk-tile-special">{parenText}</span>}
                       </div>
                     </div>
                   );
                 })}
               </div>
             )}
-            {mode === 'bulk' && packResults.length > 0 && filteredPackResults.length === 0 && <div style={{ padding: '24px 20px', textAlign: 'center', color: '#333', fontSize: 13 }}>No cards match the selected filters.</div>}
+            {mode === 'bulk' && packResults.length > 0 && filteredPackResults.length === 0 && <div className="ca-searchmodal-hint">No cards match the selected filters.</div>}
           </div>
 
           {/* ── Right panel: selected items with qty controls ── */}
           {mode === 'search' && hasSelected && (
-            <div style={{ width: 320, flexShrink: 0, display: 'flex', flexDirection: 'column', background: '#0e0e12' }}>
+            <div className="ca-searchmodal-panel">
               {/* Panel header */}
-              <div style={{ padding: '10px 14px', borderBottom: '1px solid #1e1e24', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+              <div className="ca-searchmodal-panel-header">
+                <span className="ca-panel-header-label">
                   {selectedItems.length} selected
                 </span>
-                <div style={{ display: 'flex', alignItems: 'center', background: '#18181e', border: '1px solid #2a2a32', borderRadius: 6, overflow: 'hidden' }}>
+                <div className="ca-qty-stepper">
                         <button
                           onClick={decrementAllQty}
-                          style={{ width: 28, height: 26, background: 'transparent', border: 'none', color: '#555', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
-                          onMouseEnter={e => (e.currentTarget.style.color = '#e8e6e0')}
-                          onMouseLeave={e => (e.currentTarget.style.color = '#555')}
+                          className="ca-qty-stepper-btn ca-qty-stepper-btn--sm"
                         >−</button>
                         <input
                           value={bulkQtyInput}
                           onChange={e => handleBulkQtyChange(e.target.value)}
                           placeholder="Set"
-                          style={{
-                            width: 40,
-                            height: 26,
-                            textAlign: 'center',
-                            background: '#18181e',
-                            border: '1px solid #2a2a32',
-                            borderRadius: 6,
-                            color: '#d4d2cc',
-                            fontSize: 12,
-                            outline: 'none',
-                          }}
+                          className="ca-qty-stepper-input"
                         />
                         <button
                           onClick={incrementAllQty}
-                          style={{ width: 28, height: 26, background: 'transparent', border: 'none', color: '#555', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
-                          onMouseEnter={e => (e.currentTarget.style.color = '#e8e6e0')}
-                          onMouseLeave={e => (e.currentTarget.style.color = '#555')}
+                          className="ca-qty-stepper-btn ca-qty-stepper-btn--sm"
                         >+</button>
                       </div>
-                <button onClick={() => setSelectedItems([])} style={{ fontSize: 10, color: '#444', background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 6px' }}>
+                <button onClick={() => setSelectedItems([])} className="ca-clear-all-btn">
                   Clear all
                 </button>
               </div>
 
               {/* Scrollable list */}
-              <div style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}>
-<div
-  style={{
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 12,
-    padding: 12,
-  }}
->
-  {selectedItems.map(item => (
-    <SelectedCard
-      key={item.id}
-      item={item}
-      onRemove={removeItem}
-      onIncrementQty={incrementQty}
-      onDecrementQty={decrementQty}
-      onPriceChange={updatePrice}
-    />
-  ))}
-</div>
+              <div className="ca-selected-items-scroll">
+                <div className="ca-selected-items-list">
+                  {selectedItems.map(item => (
+                    <SelectedCard
+                      key={item.id}
+                      item={item}
+                      onRemove={removeItem}
+                      onIncrementQty={incrementQty}
+                      onDecrementQty={decrementQty}
+                      onPriceChange={updatePrice}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
           )}
         </div>
 
         {/* ── Footer ── */}
-        <div style={{ padding: '12px 20px', borderTop: '1px solid #1e1e24', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div className="ca-modal-footer">
           {mode === 'search' ? (
             <>
-              <span style={{ fontSize: 12, color: '#444' }}>
+              <span className="ca-footer-text">
                 {selectedItems.length > 0 ? `${selectedItems.length} card${selectedItems.length > 1 ? 's' : ''} selected` : 'No cards selected'}
               </span>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => { setModalText(''); setResults([]); setSelectedItems([]); onClose(); }} style={{ padding: '7px 16px', borderRadius: 7, border: '1px solid #2a2a32', background: 'transparent', color: '#888', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
-                <button onClick={handleAdd} disabled={selectedItems.length === 0} style={{ padding: '7px 20px', borderRadius: 7, border: 'none', background: selectedItems.length === 0 ? '#1e1e28' : '#4f46e5', color: selectedItems.length === 0 ? '#444' : '#fff', fontSize: 12, fontWeight: 600, cursor: selectedItems.length === 0 ? 'not-allowed' : 'pointer' }}>
+              <div className="ca-footer-btn-group">
+                <button onClick={() => { setModalText(''); setResults([]); setSelectedItems([]); onClose(); }} className="ca-btn ca-btn-ghost ca-btn-md">Cancel</button>
+                <button onClick={handleAdd} disabled={selectedItems.length === 0} className="ca-btn ca-btn-primary ca-btn-md">
                   Add{selectedItems.length > 0 ? ` ${selectedItems.length} card${selectedItems.length > 1 ? 's' : ''}` : ''}
                 </button>
               </div>
             </>
           ) : (
             <>
-              <span style={{ fontSize: 12, color: '#444' }}>{bulkSelected.size > 0 ? `${bulkSelected.size} card${bulkSelected.size > 1 ? 's' : ''} selected` : 'No cards selected'}</span>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={onClose} style={{ padding: '7px 16px', borderRadius: 7, border: '1px solid #2a2a32', background: 'transparent', color: '#888', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
-                <button onClick={handleBulkAdd} disabled={bulkSelected.size === 0} style={{ padding: '7px 20px', borderRadius: 7, border: 'none', background: bulkSelected.size === 0 ? '#1e1e28' : '#4f46e5', color: bulkSelected.size === 0 ? '#444' : '#fff', fontSize: 12, fontWeight: 600, cursor: bulkSelected.size === 0 ? 'not-allowed' : 'pointer' }}>
+              <span className="ca-footer-text">{bulkSelected.size > 0 ? `${bulkSelected.size} card${bulkSelected.size > 1 ? 's' : ''} selected` : 'No cards selected'}</span>
+              <div className="ca-footer-btn-group">
+                <button onClick={onClose} className="ca-btn ca-btn-ghost ca-btn-md">Cancel</button>
+                <button onClick={handleBulkAdd} disabled={bulkSelected.size === 0} className="ca-btn ca-btn-primary ca-btn-md">
                   Add {bulkSelected.size > 0 ? `${bulkSelected.size} card${bulkSelected.size > 1 ? 's' : ''}` : ''}
                 </button>
               </div>
@@ -592,8 +552,6 @@ export default function SearchModal({ open, onClose, onAdd }: Props) {
           )}
         </div>
       </div>
-
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

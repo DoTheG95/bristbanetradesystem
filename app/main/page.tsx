@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react';
 import SearchModal from '../components/SearchModal';
 import MakeOfferModal from '../components/MakeOfferModal';
+import MarkSoldModal from '../components/MarkSoldModal';
 import MatchModal, { MatchResult, MatchedCard } from '../components/MatchModal';
 import { supabase } from '@/lib/supabase';
 import Navbar from '../components/Navbar';
@@ -25,8 +26,6 @@ import ListView from '../components/ListView';
 
 export default function MainPage() {
   const [userId, setUserId]           = useState<string | null>(null);
-  const [userEmail, setUserEmail]     = useState<string | null>(null);
-  const [displayName, setDisplayName] = useState<string | null>(null);
   const [checking, setChecking]       = useState(true);
   const [activeTab, setActiveTab]     = useState<ListType>('wishlist');
   const [lists, setLists]             = useState<Record<ListType, CardEntry[]>>(EMPTY_LISTS);
@@ -60,6 +59,9 @@ export default function MainPage() {
 
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
+  // Mark as sold (rendered once here, not per-row, so it can't fight the hover-popover state in the list)
+  const [soldTarget, setSoldTarget] = useState<CardEntry | null>(null);
+
   /* ── auth guard ── */
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -77,16 +79,14 @@ export default function MainPage() {
         return;
       }
       setUserId(session.user.id);
-      setUserEmail(session.user.email ?? null);
-      setDisplayName(profile.display_name);
       setChecking(false);
     });
- 
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT' || !session) {
         window.location.replace('/');
       }
-    }); 
+    });
     return () => subscription.unsubscribe();
   }, []);
 
@@ -281,6 +281,13 @@ export default function MainPage() {
     });
   }, [triggerAutoSave]);
 
+  const handleSoldConfirm = useCallback((soldQty: number) => {
+    if (!soldTarget) return;
+    const remaining = (soldTarget.quantity ?? soldQty) - soldQty;
+    if (remaining > 0) updateQty('tradelist', soldTarget.id, String(remaining));
+    else removeCard('tradelist', soldTarget.id);
+  }, [soldTarget, updateQty, removeCard]);
+
   if (checking || !userId) return null;
 
   const cards     = lists[activeTab];
@@ -321,151 +328,120 @@ export default function MainPage() {
     setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   };
 
-  const pgBtn = (disabled: boolean): React.CSSProperties => ({
-    width: 30, height: 30, borderRadius: 6, border: '1px solid #2a2a32',
-    background: disabled ? 'transparent' : '#141418', color: disabled ? '#2a2a32' : '#888',
-    cursor: disabled ? 'not-allowed' : 'pointer', fontSize: 12,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-  });
-
   const SortBtn = ({ field }: { field: SortField }) => {
     const active = sortField === field;
     return (
-      <button onClick={() => handleSortToggle(field)} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 5, border: `1px solid ${active ? '#4f46e5' : '#2a2a32'}`, background: active ? '#16182a' : 'transparent', color: active ? '#818cf8' : '#555', fontSize: 10, fontWeight: 600, cursor: 'pointer', transition: 'all 0.12s', whiteSpace: 'nowrap' }}>
-        {SORT_LABELS[field]}<span style={{ fontSize: 9 }}>{active ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
+      <button onClick={() => handleSortToggle(field)} className={`ca-sort-btn${active ? ' is-active' : ''}`}>
+        {SORT_LABELS[field]}<span className="ca-sort-btn-arrow">{active ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
       </button>
     );
   };
 
-  const gridCols = '36px 150px minmax(0, 1fr) 60px 90px 90px 36px 36px';
-
   return (
-    <div style={{ minHeight: '100vh', background: '#0c0c0e', fontFamily: "'DM Sans', 'Segoe UI', sans-serif", color: '#e8e6e0' }}>
+    <div className="ca-page">
       <Navbar />
 
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 24px' }}>
+      <div className="ca-container">
 
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 32 }}>
+        <div className="ca-list-header-row">
           <div>
-            <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.03em', margin: 0, color: '#e8e6e0' }}>My Lists</h1>
-            <p style={{ fontSize: 14, color: '#555', marginTop: 6, marginBottom: 0 }}>Track cards you want and cards you're trading away.</p>
+            <h1 className="ca-list-title">My Lists</h1>
+            <p className="ca-list-subtitle">Track cards you want and cards you're trading away.</p>
           </div>
-          <button onClick={() => setShowMatchScopeModal(true)} style={{ padding: '10px 22px', borderRadius: 8, border: 'none', background: '#4f46e5', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginTop: 4 }} onMouseEnter={e => e.currentTarget.style.background = '#6056f5'} onMouseLeave={e => e.currentTarget.style.background = '#4f46e5'}>
+          <button onClick={() => setShowMatchScopeModal(true)} className="ca-match-btn">
             ⚡ Match me!
           </button>
         </div>
 
         {/* Tabs + Add */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <div style={{ display: 'flex', gap: 4, background: '#141418', borderRadius: 10, padding: 4 }}>
+        <div className="ca-tabs-row">
+          <div className="ca-tabbar">
             {(['wishlist', 'tradelist'] as ListType[]).map(tab => (
-              <button key={tab} onClick={() => { setActiveTab(tab); setTableSearch(''); }} style={{ padding: '7px 20px', borderRadius: 7, border: 'none', fontSize: 13, fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s', background: activeTab === tab ? '#1e1e28' : 'transparent', color: activeTab === tab ? '#e8e6e0' : '#555', boxShadow: activeTab === tab ? '0 1px 3px rgba(0,0,0,0.4)' : 'none' }}>
+              <button key={tab} onClick={() => { setActiveTab(tab); setTableSearch(''); }} className={`ca-tab${activeTab === tab ? ' is-active' : ''}`}>
                 {tab === 'wishlist' ? '✦ Wishlist' : '⇄ Trade list'}
-                {lists[tab].length > 0 && <span style={{ marginLeft: 7, fontSize: 11, background: activeTab === tab ? '#2e2e3e' : '#1e1e24', color: '#888', padding: '1px 7px', borderRadius: 99 }}>{lists[tab].length}</span>}
+                {lists[tab].length > 0 && <span className="ca-tab-count">{lists[tab].length}</span>}
               </button>
             ))}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {(saving || saveMsg) && (
-              <span style={{ fontSize: 11, color: saveMsg?.includes('failed') ? '#c0392b' : saving ? '#555' : '#4ade80', display: 'flex', alignItems: 'center', gap: 5 }}>
-                {saving && <span style={{ display: 'inline-block', width: 10, height: 10, border: '1.5px solid #333', borderTopColor: '#555', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />}
+              <span className={`ca-save-indicator${saveMsg?.includes('failed') ? ' is-failed' : saving ? '' : ' is-saved'}`}>
+                {saving && <span className="ca-spinner ca-spinner--sm" />}
                 {saving ? 'Saving…' : saveMsg}
               </span>
             )}
-            <button onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: '1px solid #2a2a32', background: '#141418', color: '#d4d2cc', fontSize: 13, fontWeight: 500, cursor: 'pointer', transition: 'border-color 0.15s' }} onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#3a3a48'; }} onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#2a2a32'; }}>
+            <button onClick={() => setShowModal(true)} className="ca-add-cards-btn">
               <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> Add cards
             </button>
           </div>
         </div>
 
         {/* Search */}
-        <div style={{ position: 'relative', marginBottom: 10 }}>
-          <svg style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: '#444', pointerEvents: 'none' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <input type="text" value={tableSearch} onChange={e => setTableSearch(e.target.value)} placeholder={`Search ${isWishlist ? 'wishlist' : 'trade list'}…`} style={{ width: '100%', padding: '8px 36px 8px 36px', background: '#111115', border: '1px solid #1e1e24', borderRadius: 8, color: '#e8e6e0', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', transition: 'border-color 0.15s' }} onFocus={e => e.currentTarget.style.borderColor = '#2a2a3a'} onBlur={e => e.currentTarget.style.borderColor = '#1e1e24'} />
-          {tableSearch && <button onClick={() => setTableSearch('')} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: '#444', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 2 }}>×</button>}
+        <div className="ca-search-wrap">
+          <svg className="ca-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" value={tableSearch} onChange={e => setTableSearch(e.target.value)} placeholder={`Search ${isWishlist ? 'wishlist' : 'trade list'}…`} className="ca-input ca-input--search" />
+          {tableSearch && <button onClick={() => setTableSearch('')} className="ca-search-clear">×</button>}
         </div>
 
         {/* Sort */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 12,
-          }}
-        >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              <span style={{ fontSize: 10, color: '#333', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600, marginRight: 2 }}>Sort</span>
-                {(['date_added', 'name', 'rarity', 'card_number'] as SortField[]).map(f => <SortBtn key={f} field={f} />)}
-            
-            </div>
-            <ViewToggle
-              viewMode={viewMode}
-              onChange={setViewMode}
-            />
+        <div className="ca-sort-row">
+          <div className="ca-sort-group">
+            <span className="ca-sort-label">Sort</span>
+            {(['date_added', 'name', 'rarity', 'card_number'] as SortField[]).map(f => <SortBtn key={f} field={f} />)}
           </div>
+          <ViewToggle viewMode={viewMode} onChange={setViewMode} />
+        </div>
 
         {/* Bulk action bar */}
         {someSelected && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: '#16162a', border: '1px solid #2a2a3a', borderRadius: 8, marginBottom: 8 }}>
-            <span style={{ fontSize: 12, color: '#818cf8', fontWeight: 600 }}>{selected.size} selected</span>
-            <div style={{ flex: 1 }} />
+          <div className="ca-bulk-bar">
+            <span className="ca-bulk-count">{selected.size} selected</span>
+            <div className="ca-bulk-spacer" />
             {/* Find selected — wishlist only */}
             {isWishlist && (
-              <button
-                onClick={handleFindBulk}
-                style={{ padding: '5px 14px', borderRadius: 6, border: '1px solid #4f46e5', background: 'transparent', color: '#818cf8', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.12s' }}
-                onMouseEnter={e => { e.currentTarget.style.background = '#4f46e522'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-              >
+              <button onClick={handleFindBulk} className="ca-btn ca-btn-outline-accent ca-btn-sm">
                 🔍 Find selected
               </button>
             )}
-            <button onClick={bulkRemove} style={{ padding: '5px 14px', borderRadius: 6, border: '1px solid #c0392b', background: 'transparent', color: '#c0392b', fontSize: 12, fontWeight: 600, cursor: 'pointer' }} onMouseEnter={e => { e.currentTarget.style.background = '#c0392b22'; }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>Remove selected</button>
-            <button onClick={() => setSelected(new Set())} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #2a2a32', background: 'transparent', color: '#555', fontSize: 12, cursor: 'pointer' }}>Clear</button>
+            <button onClick={bulkRemove} className="ca-btn ca-btn-outline-danger ca-btn-sm">Remove selected</button>
+            <button onClick={() => setSelected(new Set())} className="ca-btn ca-btn-ghost ca-btn-sm" style={{ borderColor: 'var(--ca-border-strong)' }}>Clear</button>
           </div>
         )}
 
         {/* Table */}
-        <div style={{ background: '#111115', border: '1px solid #1e1e24', borderRadius: 12, overflow: 'hidden', marginBottom: 12 }}>
+        <div className="ca-table-wrap">
           {/* Header */}
-          <div style={{ display: 'grid', gridTemplateColumns: gridCols, gap: 8, padding: '10px 16px', borderBottom: '1px solid #1e1e24', background: '#0e0e12', alignItems: 'center' }}>
-            <div onClick={toggleSelectAll} style={{ width: 16, height: 16, borderRadius: 4, border: `1.5px solid ${allPageSelected ? '#4f46e5' : '#2a2a32'}`, background: allPageSelected ? '#4f46e5' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
-              {allPageSelected && <span style={{ color: '#fff', fontSize: 9, lineHeight: 1 }}>✓</span>}
-              {somePagePartial && <span style={{ color: '#4f46e5', fontSize: 11, lineHeight: 1 }}>–</span>}
+          <div className="ca-table-header-row ca-grid-cols-main">
+            <div onClick={toggleSelectAll} className={`ca-checkbox${allPageSelected ? ' is-checked' : ''}`}>
+              {allPageSelected && <span className="ca-checkbox-mark">✓</span>}
+              {somePagePartial && <span className="ca-checkbox-dash">–</span>}
             </div>
             <span />
-            <span style={{ fontSize: 10, fontWeight: 600, color: '#444', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Card</span>
-            <span style={{ fontSize: 10, fontWeight: 600, color: '#444', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Rarity</span>
-            <span style={{ fontSize: 10, fontWeight: 600, color: '#444', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Qty</span>
-            <span style={{ fontSize: 10, fontWeight: 600, color: '#444', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            <span className="ca-th-label">Card</span>
+            <span className="ca-th-label">Rarity</span>
+            <span className="ca-th-label">Qty</span>
+            <span className="ca-th-label">
               {isWishlist ? 'Find' : 'Price ($)'}
             </span>
             <span />
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end' }}>
-              <select value={itemsPerPage} onChange={e => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }} title="Items per page" style={{ background: '#1a1a22', border: '1px solid #2a2a32', borderRadius: 4, color: '#555', fontSize: 9, padding: '1px 3px', outline: 'none', cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none' }}>
+            <div className="ca-th-actions">
+              <select value={itemsPerPage} onChange={e => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }} title="Items per page" className="ca-per-page-select">
                 {PER_PAGE_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
               </select>
             </div>
           </div>
 
           {isLoading ? (
-            <div style={{ padding: '40px 16px', textAlign: 'center', color: '#333', fontSize: 13 }}>Loading…</div>
+            <div className="ca-table-loading">Loading…</div>
           ) : cards.length === 0 ? (
-            <div style={{ padding: '48px 16px', textAlign: 'center', color: '#333', fontSize: 14 }}>
+            <div className="ca-table-empty">
               {isWishlist ? 'No cards on your wishlist yet.' : 'No cards on your trade list yet.'}<br />
-              <span style={{ fontSize: 12, color: '#2a2a32' }}>Use the + button above to add cards.</span>
+              <span className="ca-table-empty-hint">Use the + button above to add cards.</span>
             </div>
           ) : sortedCards.length === 0 ? (
-            <div style={{ padding: '40px 16px', textAlign: 'center', color: '#333', fontSize: 13 }}>
-              No cards match "<span style={{ color: '#555' }}>{tableSearch}</span>"
+            <div className="ca-table-nomatch">
+              No cards match "<span className="ca-table-nomatch-query">{tableSearch}</span>"
             </div>
           ) : (
             <ListView
@@ -479,6 +455,7 @@ export default function MainPage() {
               handleFindSingle={handleFindSingle}
               handleImageMouseEnter={handleImageMouseEnter}
               handleImageMouseLeave={handleImageMouseLeave}
+              requestMarkSold={setSoldTarget}
               viewMode={viewMode}
           />
           )}
@@ -486,24 +463,28 @@ export default function MainPage() {
 
         {/* Pagination */}
         {sortedCards.length > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-            <span style={{ fontSize: 12, color: '#444' }}>{sortedCards.length} card{sortedCards.length !== 1 ? 's' : ''}{q ? ` (filtered from ${cards.length})` : ''}</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <button onClick={() => setCurrentPage(1)} disabled={safePage === 1} style={pgBtn(safePage === 1)}>{'|<'}</button>
-              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={safePage === 1} style={pgBtn(safePage === 1)}>{'<'}</button>
-              <span style={{ fontSize: 12, color: '#555', minWidth: 70, textAlign: 'center' }}>{safePage} / {totalPages}</span>
-              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={safePage === totalPages} style={pgBtn(safePage === totalPages)}>{'>'}</button>
-              <button onClick={() => setCurrentPage(totalPages)} disabled={safePage === totalPages} style={pgBtn(safePage === totalPages)}>{'>|'}</button>
+          <div className="ca-pagination-row">
+            <span className="ca-pagination-count">{sortedCards.length} card{sortedCards.length !== 1 ? 's' : ''}{q ? ` (filtered from ${cards.length})` : ''}</span>
+            <div className="ca-pagination-controls">
+              <button onClick={() => setCurrentPage(1)} disabled={safePage === 1} className="ca-page-btn">{'|<'}</button>
+              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={safePage === 1} className="ca-page-btn">{'<'}</button>
+              <span className="ca-page-indicator">{safePage} / {totalPages}</span>
+              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={safePage === totalPages} className="ca-page-btn">{'>'}</button>
+              <button onClick={() => setCurrentPage(totalPages)} disabled={safePage === totalPages} className="ca-page-btn">{'>|'}</button>
             </div>
-            <span style={{ fontSize: 12, color: '#444' }}>{pageStart + 1}–{Math.min(pageStart + itemsPerPage, sortedCards.length)} of {sortedCards.length}</span>
+            <span className="ca-pagination-count">{pageStart + 1}–{Math.min(pageStart + itemsPerPage, sortedCards.length)} of {sortedCards.length}</span>
           </div>
         )}
       </div>
 
       {/* Popover */}
       {popover && (
-        <div ref={popoverRef} style={{ position: 'fixed', left: popover.x, top: popover.y, transform: 'translateY(-50%)', zIndex: 9999, background: '#1a1a22', border: '1px solid #2a2a38', borderRadius: 10, padding: 10, boxShadow: '0 16px 48px rgba(0,0,0,0.7)', pointerEvents: 'none', animation: 'popoverIn 0.12s ease' }}>
-          <img src={popover.src} alt={popover.name} style={{ width: 500, height: 500, objectFit: 'contain', borderRadius: 6, display: 'block' }} />
+        <div
+          ref={popoverRef}
+          className="ca-popover"
+          style={{ '--popover-x': `${popover.x}px`, '--popover-y': `${popover.y}px` } as React.CSSProperties}
+        >
+          <img src={popover.src} alt={popover.name} className="ca-popover-img" />
         </div>
       )}
 
@@ -514,40 +495,43 @@ export default function MainPage() {
 
       {/* ── Find Traders results modal ── */}
       {(findLoading || traderGroups !== null) && (
-        <div onClick={() => { setTraderGroups(null); setFindLoading(false); }} style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 520, maxHeight: '85vh', background: '#111115', border: '1px solid #1e1e24', borderRadius: 14, display: 'flex', flexDirection: 'column', boxShadow: '0 32px 80px rgba(0,0,0,0.8)', animation: 'matchModalIn 0.18s ease' }}>
+        <div onClick={() => { setTraderGroups(null); setFindLoading(false); }} className="ca-modal-overlay">
+          <div onClick={e => e.stopPropagation()} className="ca-modal ca-modal--md ca-modal--max-h-85">
             {/* Header */}
-            <div style={{ padding: '18px 20px', borderBottom: '1px solid #1e1e24', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+            <div className="ca-modal-header">
               <div>
-                <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#e8e6e0' }}>🔍 Traders selling this</h2>
-                <p style={{ margin: '3px 0 0', fontSize: 12, color: '#555', maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{findCardLabel}</p>
+                <h2 className="ca-modal-title">🔍 Traders selling this</h2>
+                <p className="ca-modal-subtitle" style={{ maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{findCardLabel}</p>
               </div>
-              <button onClick={() => { setTraderGroups(null); setFindLoading(false); }} style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid #2a2a32', background: 'transparent', color: '#555', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+              <button onClick={() => { setTraderGroups(null); setFindLoading(false); }} className="ca-icon-btn">×</button>
             </div>
 
             {/* Body */}
-            <div style={{ overflowY: 'auto', flex: 1 }}>
+            <div className="ca-modal-body--plain">
               {findLoading ? (
-                <div style={{ padding: '48px 20px', textAlign: 'center' }}>
-                  <div style={{ display: 'inline-block', width: 24, height: 24, border: '3px solid #2a2a32', borderTopColor: '#4f46e5', borderRadius: '50%', animation: 'spin 0.7s linear infinite', marginBottom: 12 }} />
-                  <div style={{ color: '#444', fontSize: 13 }}>Searching traders…</div>
+                <div className="ca-empty-state">
+                  <span className="ca-spinner" style={{ width: 24, height: 24, borderWidth: 3, marginBottom: 12 }} />
+                  <div style={{ color: 'var(--ca-text-ghost)', fontSize: 13 }}>Searching traders…</div>
                 </div>
               ) : traderGroups !== null && traderGroups.length === 0 ? (
-                <div style={{ padding: '56px 20px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 36, marginBottom: 10 }}>🃏</div>
-                  <div style={{ color: '#444', fontSize: 14 }}>No traders found.</div>
-                  <div style={{ color: '#2a2a32', fontSize: 12, marginTop: 4 }}>Nobody has listed this card in their trade list yet.</div>
+                <div className="ca-empty-state">
+                  <div className="ca-empty-icon">🃏</div>
+                  <div className="ca-empty-title">No traders found.</div>
+                  <div className="ca-empty-subtitle">Nobody has listed this card in their trade list yet.</div>
                 </div>
-              ) : (traderGroups ?? []).map((group, gi) => (
-                <div key={group.userId} style={{ padding: '14px 20px', borderBottom: gi < (traderGroups?.length ?? 0) - 1 ? '1px solid #18181e' : 'none' }}>
+              ) : (traderGroups ?? []).map((group) => (
+                <div key={group.userId} className="ca-list-item-block">
                   {/* Trader header */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, background: `hsl(${group.userId.charCodeAt(0) * 7 % 360}, 40%, 18%)`, border: `2px solid hsl(${group.userId.charCodeAt(0) * 7 % 360}, 55%, 32%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: `hsl(${group.userId.charCodeAt(0) * 7 % 360}, 75%, 65%)` }}>
+                  <div className="ca-item-block-header">
+                    <div
+                      className="ca-avatar ca-avatar--md"
+                      style={{ '--ca-hue': (group.userId.charCodeAt(0) * 7) % 360 } as React.CSSProperties}
+                    >
                       {group.displayName.charAt(0).toUpperCase()}
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#e8e6e0' }}>{group.displayName}</div>
-                      {group.digimon && <div style={{ fontSize: 10, color: '#4f46e5', marginTop: 1 }}>{group.digimon}</div>}
+                    <div className="ca-trader-info">
+                      <div className="ca-trader-name">{group.displayName}</div>
+                      {group.digimon && <div className="ca-trader-digimon">{group.digimon}</div>}
                     </div>
                     {/* Make Offer — convert trader group to MatchResult shape */}
                     <button
@@ -568,9 +552,7 @@ export default function MainPage() {
                           iHaveForThem: [],
                         });
                       }}
-                      style={{ padding: '5px 12px', borderRadius: 6, border: 'none', background: '#4f46e5', color: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
-                      onMouseEnter={e => (e.currentTarget.style.background = '#6056f5')}
-                      onMouseLeave={e => (e.currentTarget.style.background = '#4f46e5')}
+                      className="ca-make-offer-btn"
                     >
                       Make Offer
                     </button>
@@ -579,16 +561,16 @@ export default function MainPage() {
                   {/* Cards this trader has */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     {group.cards.map(card => (
-                      <div key={card.tcgplayer_id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', background: '#16161c', borderRadius: 6 }}>
-                        <img src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`} alt={card.tcgplayer_name} style={{ width: 26, height: 26, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 12, fontWeight: 500, color: '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.tcgplayer_name}</div>
-                          <div style={{ fontSize: 10, color: '#444', fontFamily: 'monospace' }}>{card.card_number}</div>
+                      <div key={card.tcgplayer_id} className="ca-mini-card-row">
+                        <img src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`} alt={card.tcgplayer_name} className="ca-mini-card-thumb" />
+                        <div className="ca-mini-card-info">
+                          <div className="ca-mini-card-name">{card.tcgplayer_name}</div>
+                          <div className="ca-mini-card-number">{card.card_number}</div>
                         </div>
-                        {card.rarity && <span style={{ fontSize: 9, fontWeight: 700, color: '#555', flexShrink: 0 }}>{card.rarity}</span>}
-                        {card.qty != null && <span style={{ fontSize: 10, color: '#555', flexShrink: 0 }}>×{card.qty}</span>}
+                        {card.rarity && <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--ca-text-faint)', flexShrink: 0 }}>{card.rarity}</span>}
+                        {card.qty != null && <span className="ca-mini-card-qty">×{card.qty}</span>}
                         {card.price != null && (
-                          <span style={{ fontSize: 11, fontWeight: 600, color: '#4ade80', flexShrink: 0 }}>${card.price.toFixed(2)}</span>
+                          <span className="ca-mini-card-price">${card.price.toFixed(2)}</span>
                         )}
                       </div>
                     ))}
@@ -602,67 +584,70 @@ export default function MainPage() {
 
       {/* Match results modal */}
       {showMatchResults && matchResults !== null && (
-        <div onClick={() => setShowMatchResults(false)} style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 560, maxHeight: '85vh', background: '#111115', border: '1px solid #1e1e24', borderRadius: 14, display: 'flex', flexDirection: 'column', boxShadow: '0 32px 80px rgba(0,0,0,0.8)', animation: 'matchModalIn 0.18s ease' }}>
-            <div style={{ padding: '18px 20px', borderBottom: '1px solid #1e1e24', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+        <div onClick={() => setShowMatchResults(false)} className="ca-modal-overlay" style={{ background: 'rgba(0,0,0,0.75)' }}>
+          <div onClick={e => e.stopPropagation()} className="ca-modal ca-modal--lg ca-modal--max-h-85">
+            <div className="ca-modal-header">
               <div>
-                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#e8e6e0' }}>Trade Matches</h2>
-                <p style={{ margin: '3px 0 0', fontSize: 12, color: '#555' }}>{matchResults.length === 0 ? 'No matches found' : `${matchResults.length} trader${matchResults.length !== 1 ? 's' : ''} matched`}</p>
+                <h2 className="ca-modal-title" style={{ fontSize: 16 }}>Trade Matches</h2>
+                <p className="ca-modal-subtitle">{matchResults.length === 0 ? 'No matches found' : `${matchResults.length} trader${matchResults.length !== 1 ? 's' : ''} matched`}</p>
               </div>
-              <button onClick={() => setShowMatchResults(false)} style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid #2a2a32', background: 'transparent', color: '#555', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+              <button onClick={() => setShowMatchResults(false)} className="ca-icon-btn">×</button>
             </div>
-            <div style={{ overflowY: 'auto', flex: 1 }}>
+            <div className="ca-modal-body--plain">
               {matchResults.length === 0 ? (
-                <div style={{ padding: '56px 20px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 36, marginBottom: 10 }}>🃏</div>
-                  <div style={{ color: '#444', fontSize: 14 }}>No traders found.</div>
+                <div className="ca-empty-state">
+                  <div className="ca-empty-icon">🃏</div>
+                  <div className="ca-empty-title">No traders found.</div>
                 </div>
-              ) : matchResults.map((result, i) => {
+              ) : matchResults.map((result) => {
                 const isMutual = result.theyHaveForMe.length > 0 && result.iHaveForThem.length > 0;
                 return (
-                  <div key={result.userId} style={{ padding: '16px 20px', borderBottom: i < matchResults.length - 1 ? '1px solid #18181e' : 'none' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                      <div style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, background: `hsl(${result.userId.charCodeAt(0) * 7 % 360}, 40%, 18%)`, border: `2px solid hsl(${result.userId.charCodeAt(0) * 7 % 360}, 55%, 32%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: `hsl(${result.userId.charCodeAt(0) * 7 % 360}, 75%, 65%)` }}>
+                  <div key={result.userId} className="ca-list-item-block" style={{ padding: '16px 20px' }}>
+                    <div className="ca-item-block-header" style={{ marginBottom: 12 }}>
+                      <div
+                        className="ca-avatar ca-avatar--lg"
+                        style={{ '--ca-hue': (result.userId.charCodeAt(0) * 7) % 360 } as React.CSSProperties}
+                      >
                         {result.displayName.charAt(0).toUpperCase()}
                       </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: '#e8e6e0' }}>{result.displayName}</div>
+                      <div className="ca-trader-info">
+                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ca-text)' }}>{result.displayName}</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
-                          {result.digimon && <span style={{ fontSize: 10, color: '#4f46e5' }}>{result.digimon}</span>}
-                          {result.distanceKm !== undefined && <span style={{ fontSize: 10, color: '#555' }}>📍 {result.distanceKm}km away</span>}
-                          {isMutual && <span style={{ fontSize: 10, color: '#4ade80', fontWeight: 600 }}>✦ Mutual</span>}
+                          {result.digimon && <span className="ca-trader-digimon">{result.digimon}</span>}
+                          {result.distanceKm !== undefined && <span className="ca-distance-badge">📍 {result.distanceKm}km away</span>}
+                          {isMutual && <span className="ca-mutual-badge">✦ Mutual</span>}
                         </div>
                       </div>
-                      <button onClick={() => { setShowMatchResults(false); setOfferTarget(result); }} style={{ padding: '6px 14px', borderRadius: 7, border: 'none', background: '#4f46e5', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }} onMouseEnter={e => (e.currentTarget.style.background = '#6056f5')} onMouseLeave={e => (e.currentTarget.style.background = '#4f46e5')}>Make Offer</button>
+                      <button onClick={() => { setShowMatchResults(false); setOfferTarget(result); }} className="ca-btn ca-btn-primary ca-btn-md">Make Offer</button>
                     </div>
                     {result.theyHaveForMe.length > 0 && (
                       <div style={{ marginBottom: result.iHaveForThem.length > 0 ? 12 : 0 }}>
-                        <div style={{ fontSize: 10, fontWeight: 600, color: '#4f46e5', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>In their trade list ↓</div>
+                        <div className="ca-match-section-label ca-match-section-label--theirs">In their trade list ↓</div>
                         {result.theyHaveForMe.map(card => (
-                          <div key={card.tcgplayer_id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', background: '#16161c', borderRadius: 7, marginBottom: 3 }}>
-                            <img src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`} alt={card.tcgplayer_name} style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }} />
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 12, fontWeight: 500, color: '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.tcgplayer_name || '—'}</div>
-                              <div style={{ fontSize: 10, color: '#444', fontFamily: 'monospace' }}>{card.card_number}</div>
+                          <div key={card.tcgplayer_id} className="ca-mini-card-row" style={{ marginBottom: 3 }}>
+                            <img src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`} alt={card.tcgplayer_name} className="ca-mini-card-thumb" />
+                            <div className="ca-mini-card-info">
+                              <div className="ca-mini-card-name">{card.tcgplayer_name || '—'}</div>
+                              <div className="ca-mini-card-number">{card.card_number}</div>
                             </div>
-                            {card.rarity && <span style={{ fontSize: 9, color: '#555', fontWeight: 700 }}>{card.rarity}</span>}
-                            {card.qty != null && <span style={{ fontSize: 10, color: '#555' }}>×{card.qty}</span>}
+                            {card.rarity && <span style={{ fontSize: 9, color: 'var(--ca-text-faint)', fontWeight: 700 }}>{card.rarity}</span>}
+                            {card.qty != null && <span className="ca-mini-card-qty">×{card.qty}</span>}
                           </div>
                         ))}
                       </div>
                     )}
                     {result.iHaveForThem.length > 0 && (
                       <div>
-                        <div style={{ fontSize: 10, fontWeight: 600, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>They're looking for ({result.iHaveForThem.length}) ↓</div>
+                        <div className="ca-match-section-label ca-match-section-label--mine">They're looking for ({result.iHaveForThem.length}) ↓</div>
                         {result.iHaveForThem.map(card => (
-                          <div key={card.tcgplayer_id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', background: '#16161c', border: '1px solid #2a2218', borderRadius: 7, marginBottom: 3 }}>
-                            <img src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`} alt={card.tcgplayer_name} style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }} />
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 12, fontWeight: 500, color: '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.tcgplayer_name || '—'}</div>
-                              <div style={{ fontSize: 10, color: '#444', fontFamily: 'monospace' }}>{card.card_number}</div>
+                          <div key={card.tcgplayer_id} className="ca-mini-card-row ca-mini-card-row--outlined" style={{ marginBottom: 3 }}>
+                            <img src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`} alt={card.tcgplayer_name} className="ca-mini-card-thumb" />
+                            <div className="ca-mini-card-info">
+                              <div className="ca-mini-card-name">{card.tcgplayer_name || '—'}</div>
+                              <div className="ca-mini-card-number">{card.card_number}</div>
                             </div>
-                            {card.rarity && <span style={{ fontSize: 9, color: '#555', fontWeight: 700 }}>{card.rarity}</span>}
-                            {card.qty != null && <span style={{ fontSize: 10, color: '#555' }}>×{card.qty}</span>}
+                            {card.rarity && <span style={{ fontSize: 9, color: 'var(--ca-text-faint)', fontWeight: 700 }}>{card.rarity}</span>}
+                            {card.qty != null && <span className="ca-mini-card-qty">×{card.qty}</span>}
                           </div>
                         ))}
                       </div>
@@ -680,11 +665,17 @@ export default function MainPage() {
         <MakeOfferModal open={!!offerTarget} onClose={() => setOfferTarget(null)} receiverId={offerTarget.userId} receiverName={offerTarget.displayName} theyHaveForMe={offerTarget.theyHaveForMe} />
       )}
 
-      <style>{`
-        @keyframes popoverIn { from { opacity: 0; transform: translateY(-50%) scale(0.92); } to { opacity: 1; transform: translateY(-50%) scale(1); } }
-        @keyframes matchModalIn { from { opacity: 0; transform: scale(0.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
+      {/* Mark as sold */}
+      {soldTarget && (
+        <MarkSoldModal
+          open={!!soldTarget}
+          cardName={soldTarget.tcgplayer_name}
+          maxQty={soldTarget.quantity ?? 1}
+          onClose={() => setSoldTarget(null)}
+          onConfirm={handleSoldConfirm}
+        />
+      )}
+
       <SearchModal open={showModal} onClose={() => setShowModal(false)} onAdd={handleAdd} />
     </div>
   );

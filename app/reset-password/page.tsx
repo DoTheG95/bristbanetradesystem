@@ -51,27 +51,27 @@ export default function ResetPasswordPage() {
   );
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0d0d0f', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: "'Inter', -apple-system, sans-serif" }}>
-      <div style={{ width: '100%', maxWidth: 400, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: '36px 32px', backdropFilter: 'blur(24px)' }}>
+    <div className="ca-auth-shell">
+      <div className="ca-auth-card" style={{ maxWidth: 400 }}>
         {success ? (
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 40, marginBottom: 16 }}>✅</div>
-            <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 700, color: '#fff' }}>Password updated</h2>
-            <p style={{ margin: '0 0 24px', fontSize: 13, color: 'rgba(255,255,255,0.35)' }}>You can now log in with your new password.</p>
-            <button onClick={() => window.location.replace('/')} style={{ padding: '11px 32px', borderRadius: 10, border: 'none', background: '#6366f1', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+          <div className="ca-text-center">
+            <div className="ca-modal-icon">✅</div>
+            <h2 className="ca-modal-heading">Password updated</h2>
+            <p className="ca-modal-text">You can now log in with your new password.</p>
+            <button onClick={() => window.location.replace('/')} className="ca-auth-btn-primary ca-mt-0" style={{ padding: '11px 32px', width: 'auto' }}>
               Back to login
             </button>
           </div>
         ) : !sessionReady ? (
-          <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 14 }}>
+          <div className="ca-text-center" style={{ color: 'rgba(255,255,255,0.3)', fontSize: 14 }}>
             Verifying reset link…
           </div>
         ) : (
           <>
-            <h2 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 700, color: '#fff' }}>Choose a new password</h2>
-            <p style={{ margin: '0 0 24px', fontSize: 13, color: 'rgba(255,255,255,0.35)' }}>Must be at least 6 characters.</p>
+            <h2 className="ca-modal-heading ca-modal-heading--tight">Choose a new password</h2>
+            <p className="ca-modal-text">Must be at least 6 characters.</p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="ca-auth-fields">
               {/* New password */}
               <div style={{ position: 'relative' }}>
                 <input
@@ -80,11 +80,9 @@ export default function ResetPasswordPage() {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleReset()}
-                  style={{ width: '100%', padding: '12px 44px 12px 16px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, color: '#fff', fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
-                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(99,102,241,0.6)')}
-                  onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)')}
+                  className="ca-auth-input ca-auth-input--icon-pad"
                 />
-                <button type="button" onClick={() => setShowPassword(v => !v)} tabIndex={-1} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.25)', padding: 4, display: 'flex', alignItems: 'center' }}>
+                <button type="button" onClick={() => setShowPassword(v => !v)} tabIndex={-1} className="ca-auth-input-icon-btn">
                   <EyeIcon visible={showPassword} />
                 </button>
               </div>
@@ -97,19 +95,18 @@ export default function ResetPasswordPage() {
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleReset()}
-                  style={{ width: '100%', padding: '12px 16px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, color: '#fff', fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
-                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(99,102,241,0.6)')}
-                  onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)')}
+                  className="ca-auth-input"
                 />
               </div>
             </div>
 
-            {error && <p style={{ marginTop: 12, fontSize: 13, color: '#f87171' }}>{error}</p>}
+            {error && <p className="ca-auth-error">{error}</p>}
 
             <button
               onClick={handleReset}
               disabled={loading}
-              style={{ marginTop: 20, width: '100%', padding: 13, borderRadius: 10, border: 'none', background: loading ? 'rgba(99,102,241,0.4)' : '#6366f1', color: '#fff', fontSize: 15, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', transition: 'background 0.2s' }}
+              className="ca-auth-btn-primary"
+              style={{ marginTop: 20 }}
             >
               {loading ? 'Updating…' : 'Update password'}
             </button>

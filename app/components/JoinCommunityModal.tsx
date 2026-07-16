@@ -125,45 +125,27 @@ setPreview({
     return (
         <div
             onClick={onClose}
-            style={{
-                position: 'fixed', inset: 0, zIndex: 50,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: 'rgba(0,0,0,0.7)',
-            }}
+            className="ca-modal-overlay"
+            style={{ background: 'rgba(0,0,0,0.7)' }}
         >
             <div
                 onClick={e => e.stopPropagation()}
-                style={{
-                    width: '100%', maxWidth: 440,
-                    background: '#111115', border: '1px solid #2a2a32',
-                    borderRadius: 14, overflow: 'hidden',
-                    boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
-                    fontFamily: "'DM Sans','Segoe UI',sans-serif",
-                }}
+                className="ca-modal"
+                style={{ maxWidth: 440 }}
             >
                 {/* ── Header ── */}
-                <div style={{ padding: '16px 20px', borderBottom: '1px solid #1e1e24', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#e8e6e0' }}>
+                <div className="ca-modal-header">
+                    <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ca-text)' }}>
                         {step === 'enter-code' ? 'Join a community' : 'Community found'}
                     </span>
-                    <button
-                        onClick={onClose}
-                        style={{
-                            width: 26, height: 26, borderRadius: 6,
-                            border: '1px solid #2a2a32', background: 'transparent',
-                            color: '#555', cursor: 'pointer', fontSize: 15,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}
-                    >
-                        ×
-                    </button>
+                    <button onClick={onClose} className="ca-icon-btn ca-icon-btn--sm">×</button>
                 </div>
 
                 {/* ── Body ── */}
-                <div style={{ padding: '20px' }}>
+                <div style={{ padding: 20 }}>
                     {step === 'enter-code' ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                            <label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>
+                        <div className="ca-field-group">
+                            <label className="ca-field-label">
                                 Enter access code
                             </label>
                             <input
@@ -173,82 +155,56 @@ setPreview({
                                 onKeyDown={e => e.key === 'Enter' && handleLookup()}
                                 placeholder="e.g. X4KQ2M"
                                 maxLength={8}
-                                style={{
-                                    width: '100%', padding: '10px 12px',
-                                    background: '#18181e', border: `1px solid ${error ? '#ef4444' : '#2a2a32'}`,
-                                    borderRadius: 8, color: '#e8e6e0', fontSize: 16,
-                                    fontWeight: 700, letterSpacing: 4,
-                                    outline: 'none', fontFamily: 'monospace',
-                                    boxSizing: 'border-box',
-                                }}
+                                className={`ca-code-input${error ? ' is-error' : ''}`}
                             />
                             {error && (
-                                <span style={{ fontSize: 12, color: '#ef4444' }}>{error}</span>
+                                <span style={{ fontSize: 12, color: 'var(--ca-red-bright)' }}>{error}</span>
                             )}
                         </div>
                     ) : preview ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                             {/* Community card */}
-                            <div style={{ background: '#18181e', border: '1px solid #2a2a32', borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                <span style={{ fontSize: 16, fontWeight: 700, color: '#e8e6e0' }}>{preview.name}</span>
+                            <div className="ca-preview-card">
+                                <span className="ca-preview-name">{preview.name}</span>
                                 {preview.description && (
-                                    <span style={{ fontSize: 13, color: '#888', lineHeight: 1.5 }}>{preview.description}</span>
+                                    <span className="ca-preview-desc">{preview.description}</span>
                                 )}
-                                <span style={{ fontSize: 11, color: '#555', marginTop: 4 }}>
-                                    Owned by <span style={{ color: '#818cf8' }}>{preview.owner_name}</span>
+                                <span className="ca-preview-owner">
+                                    Owned by <span style={{ color: 'var(--ca-accent-soft)' }}>{preview.owner_name}</span>
                                 </span>
                             </div>
                             <p style={{ fontSize: 13, color: '#666', margin: 0 }}>
-                                Do you want to join <strong style={{ color: '#e8e6e0' }}>{preview.name}</strong>?
+                                Do you want to join <strong style={{ color: 'var(--ca-text)' }}>{preview.name}</strong>?
                             </p>
                             {error && (
-                                <span style={{ fontSize: 12, color: '#ef4444' }}>{error}</span>
+                                <span style={{ fontSize: 12, color: 'var(--ca-red-bright)' }}>{error}</span>
                             )}
                         </div>
                     ) : null}
                 </div>
 
                 {/* ── Footer ── */}
-                <div style={{
-                    padding: '12px 20px', borderTop: '1px solid #1e1e24',
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-                }}>
+                <div className="ca-modal-footer">
                     {/* Back button on confirm step */}
-                    {step === 'confirm' && (
+                    {step === 'confirm' ? (
                         <button
                             onClick={() => { setStep('enter-code'); setPreview(null); setError(null); }}
-                            style={{
-                                padding: '8px 14px', borderRadius: 8,
-                                border: '1px solid #2a2a32', background: 'transparent',
-                                color: '#666', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                            }}
+                            className="ca-btn ca-btn-ghost"
+                            style={{ padding: '8px 14px' }}
                         >
                             ← Back
                         </button>
-                    )}
+                    ) : <span />}
 
                     <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
-                        <button
-                            onClick={onClose}
-                            style={{
-                                padding: '8px 16px', borderRadius: 8,
-                                border: '1px solid #2a2a32', background: 'transparent',
-                                color: '#888', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                            }}
-                        >
+                        <button onClick={onClose} className="ca-btn ca-btn-ghost" style={{ padding: '8px 16px' }}>
                             Cancel
                         </button>
                         <button
                             onClick={step === 'enter-code' ? handleLookup : handleJoin}
                             disabled={loading || (step === 'enter-code' && !code.trim())}
-                            style={{
-                                padding: '8px 20px', borderRadius: 8, border: 'none',
-                                background: loading || (step === 'enter-code' && !code.trim()) ? '#2a2a38' : '#4f46e5',
-                                color: loading || (step === 'enter-code' && !code.trim()) ? '#555' : '#fff',
-                                fontSize: 13, fontWeight: 600,
-                                cursor: loading || (step === 'enter-code' && !code.trim()) ? 'not-allowed' : 'pointer',
-                                transition: 'background 0.15s, color 0.15s',
-                            }}
+                            className="ca-btn ca-btn-primary"
+                            style={{ padding: '8px 20px' }}
                         >
                             {loading ? 'Loading…' : step === 'enter-code' ? 'Look up' : 'Join Community'}
                         </button>

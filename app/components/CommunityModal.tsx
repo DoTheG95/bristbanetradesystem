@@ -49,7 +49,7 @@ export default function CommunityModal({ open, onClose }: Props) {
         // 1. Get the current user
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
-                
+
         const accessCode = await generateUniqueAccessCode();
         if (!accessCode) {
             console.error('Failed to generate a unique access code');
@@ -77,9 +77,9 @@ export default function CommunityModal({ open, onClose }: Props) {
         // 3. Link the user to the new community
         const { error: joinError } = await supabase
             .from('user_communities')
-            .insert({ 
-                user_id: session.user.id, 
-                community_id: community.id 
+            .insert({
+                user_id: session.user.id,
+                community_id: community.id
         });
 
     if (joinError) {
@@ -96,47 +96,28 @@ export default function CommunityModal({ open, onClose }: Props) {
     return (
         <div
             onClick={onClose}
-            style={{
-                position: 'fixed', inset: 0, zIndex: 50,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: 'rgba(0,0,0,0.7)',
-            }}
+            className="ca-modal-overlay"
+            style={{ background: 'rgba(0,0,0,0.7)' }}
         >
             <div
                 onClick={e => e.stopPropagation()}
-                style={{
-                    width: '100%', maxWidth: 480,
-                    background: '#111115', border: '1px solid #2a2a32',
-                    borderRadius: 14, overflow: 'hidden',
-                    boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
-                    fontFamily: "'DM Sans','Segoe UI',sans-serif",
-                }}
+                className="ca-modal ca-modal--sm"
             >
                 {/* ── Header ── */}
-                <div style={{ padding: '16px 20px 14px', borderBottom: '1px solid #1e1e24' }}>
+                <div style={{ padding: '16px 20px 14px', borderBottom: '1px solid var(--ca-border)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: '#e8e6e0' }}>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ca-text)' }}>
                             Create a new community
                         </span>
-                        <button
-                            onClick={onClose}
-                            style={{
-                                width: 26, height: 26, borderRadius: 6,
-                                border: '1px solid #2a2a32', background: 'transparent',
-                                color: '#555', cursor: 'pointer', fontSize: 15,
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            }}
-                        >
-                            ×
-                        </button>
+                        <button onClick={onClose} className="ca-icon-btn ca-icon-btn--sm">×</button>
                     </div>
                 </div>
 
                 {/* ── Body ── */}
                 <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {/* Community name */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>
+                    <div className="ca-field-group">
+                        <label className="ca-field-label">
                             Community name
                         </label>
                         <input
@@ -144,63 +125,35 @@ export default function CommunityModal({ open, onClose }: Props) {
                             value={communityName}
                             onChange={e => setCommunityName(e.target.value)}
                             placeholder="e.g. Northside Traders"
-                            style={{
-                                width: '100%', padding: '9px 12px',
-                                background: '#18181e', border: '1px solid #2a2a32',
-                                borderRadius: 8, color: '#e8e6e0', fontSize: 13,
-                                outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
-                            }}
+                            className="ca-input"
                         />
                     </div>
 
                     {/* Community description */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <label style={{ fontSize: 12, fontWeight: 600, color: '#888' }}>
-                            Description <span style={{ color: '#444', fontWeight: 400 }}>(optional)</span>
+                    <div className="ca-field-group">
+                        <label className="ca-field-label">
+                            Description <span style={{ color: 'var(--ca-text-ghost)', fontWeight: 400 }}>(optional)</span>
                         </label>
                         <textarea
                             value={communityDescription}
                             onChange={e => setCommunityDescription(e.target.value)}
                             placeholder="What is this community about?"
                             rows={3}
-                            style={{
-                                width: '100%', padding: '9px 12px',
-                                background: '#18181e', border: '1px solid #2a2a32',
-                                borderRadius: 8, color: '#e8e6e0', fontSize: 13,
-                                outline: 'none', fontFamily: 'inherit', resize: 'vertical',
-                                boxSizing: 'border-box',
-                            }}
+                            className="ca-textarea"
                         />
                     </div>
                 </div>
 
                 {/* ── Footer ── */}
-                <div style={{
-                    padding: '12px 20px', borderTop: '1px solid #1e1e24',
-                    display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8,
-                }}>
-                    <button
-                        onClick={onClose}
-                        style={{
-                            padding: '8px 16px', borderRadius: 8,
-                            border: '1px solid #2a2a32', background: 'transparent',
-                            color: '#888', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                        }}
-                    >
+                <div className="ca-modal-footer ca-modal-footer--end">
+                    <button onClick={onClose} className="ca-btn ca-btn-ghost" style={{ padding: '8px 16px' }}>
                         Cancel
                     </button>
                     <button
                         onClick={handleCreateCommunity}
                         disabled={!communityName.trim()}
-                        style={{
-                            padding: '8px 20px', borderRadius: 8,
-                            border: 'none',
-                            background: communityName.trim() ? '#4f46e5' : '#2a2a38',
-                            color: communityName.trim() ? '#fff' : '#555',
-                            fontSize: 13, fontWeight: 600,
-                            cursor: communityName.trim() ? 'pointer' : 'not-allowed',
-                            transition: 'background 0.15s, color 0.15s',
-                        }}
+                        className="ca-btn ca-btn-primary"
+                        style={{ padding: '8px 20px' }}
                     >
                         Create Community
                     </button>

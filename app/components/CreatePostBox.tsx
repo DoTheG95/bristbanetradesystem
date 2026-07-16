@@ -129,15 +129,15 @@ export default function CreatePostBox({ userId, displayName, userCommunities, on
 
     return (
         <>
-            <div style={{ background: '#111115', border: '1px solid #1e1e24', borderRadius: 12, overflow: 'hidden', marginBottom: 32 }}>
-                <div style={{ padding: 16 }}>
+            <div className="ca-createpost">
+                <div className="ca-createpost-body">
 
                     {/* Row 1: post type + cash toggle */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <div className="ca-createpost-row1">
                         <select
                             value={postType}
                             onChange={e => setPostType(e.target.value)}
-                            style={{ background: '#18181e', color: '#4f46e5', border: '1px solid #2a2a32', padding: '4px 8px', borderRadius: 6, fontSize: 12, fontWeight: 600, outline: 'none' }}
+                            className="ca-type-select"
                         >
                             <option value="tradelist">Tradelist</option>
                             <option value="wishlist">Wishlist</option>
@@ -147,9 +147,9 @@ export default function CreatePostBox({ userId, displayName, userCommunities, on
                             <span style={{ fontSize: 12, fontWeight: 600, color: '#a1a1aa' }}>Only Cash</span>
                             <button
                                 onClick={() => setOnlyCash(!onlyCash)}
-                                style={{ position: 'relative', width: 40, height: 20, borderRadius: 20, border: '1px solid #2a2a32', background: onlyCash ? '#22c55e' : '#3f3f46', transition: 'background 0.2s ease', cursor: 'pointer', padding: 0 }}
+                                className={`ca-switch${onlyCash ? ' is-on' : ''}`}
                             >
-                                <span style={{ position: 'absolute', top: 2, left: onlyCash ? 20 : 2, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.2s ease' }} />
+                                <span className="ca-switch-knob" />
                             </button>
                         </div>
                     </div>
@@ -159,31 +159,31 @@ export default function CreatePostBox({ userId, displayName, userCommunities, on
                         placeholder="Describe your trade or post details..."
                         value={content}
                         onChange={e => setContent(e.target.value)}
-                        style={{ width: '100%', minHeight: 80, background: 'transparent', border: 'none', color: '#e8e6e0', fontSize: 15, outline: 'none', resize: 'none', boxSizing: 'border-box' }}
+                        className="ca-post-textarea"
                     />
 
                     {/* Selected card chips */}
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+                    <div className="ca-createpost-chips">
                         {selectedCards.map((card, idx) => (
-                            <div key={idx} style={{ background: '#1e1e28', border: '1px solid #2a2a32', padding: '4px 10px', borderRadius: 6, fontSize: 11, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <div key={idx} className="ca-createpost-chip">
                                 <span style={{ color: '#888' }}>{card.card_number}</span>
                                 {card.tcgplayer_name}
                                 <button onClick={() => setSelectedCards(prev => prev.filter((_, i) => i !== idx))} style={{ border: 'none', background: 'transparent', color: '#555', cursor: 'pointer' }}>×</button>
                             </div>
                         ))}
-                        <button onClick={() => setShowSearch(true)} style={{ background: 'transparent', border: '1px dashed #333', color: '#555', padding: '4px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>
+                        <button onClick={() => setShowSearch(true)} className="ca-add-dashed-btn">
                             + Add Cards
                         </button>
                     </div>
 
                     {/* Audience selector */}
-                    <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid #1e1e24' }}>
-                        <span style={{ fontSize: 11, fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Post to</span>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                    <div className="ca-audience-section">
+                        <span className="ca-audience-label">Post to</span>
+                        <div className="ca-audience-pills">
                             {/* Public toggle */}
                             <button
                                 onClick={togglePublic}
-                                style={{ padding: '4px 12px', borderRadius: 99, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid', transition: 'all 0.15s', background: isPublic ? '#1e1e32' : 'transparent', borderColor: isPublic ? '#4f46e5' : '#2a2a32', color: isPublic ? '#818cf8' : '#555' }}
+                                className={`ca-pill-toggle${isPublic ? ' is-active' : ''}`}
                             >
                                 Public
                             </button>
@@ -195,24 +195,24 @@ export default function CreatePostBox({ userId, displayName, userCommunities, on
                                     <button
                                         key={c.id}
                                         onClick={() => toggleCommunity(c.id)}
-                                        style={{ padding: '4px 12px', borderRadius: 99, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid', transition: 'all 0.15s', background: active ? '#1e1e32' : 'transparent', borderColor: active ? '#4f46e5' : '#2a2a32', color: active ? '#818cf8' : '#555' }}
+                                        className={`ca-pill-toggle${active ? ' is-active' : ''}`}
                                     >
                                         {c.name}
                                     </button>
                                 );
                             })}
                         </div>
-                        <div style={{ marginTop: 8, fontSize: 11, color: '#444', fontStyle: 'italic' }}>
+                        <div className="ca-audience-summary">
                             Posting to: <span style={{ color: '#818cf8' }}>{audienceSummary()}</span>
                         </div>
                     </div>
                 </div>
 
-                <div style={{ padding: '12px 16px', background: '#0e0e12', borderTop: '1px solid #1e1e24', display: 'flex', justifyContent: 'flex-end' }}>
+                <div className="ca-createpost-footer">
                     <button
                         onClick={handleCreatePost}
                         disabled={!canPost}
-                        style={{ padding: '8px 24px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 600, cursor: canPost ? 'pointer' : 'not-allowed', background: canPost ? '#4f46e5' : '#1e1e28', color: canPost ? '#fff' : '#444' }}
+                        className="ca-btn ca-btn-primary ca-btn-lg"
                     >
                         {submitting ? 'Posting...' : 'Post'}
                     </button>

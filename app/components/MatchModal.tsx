@@ -292,49 +292,34 @@ export default function MatchModal({ open, onClose, userId, onResults }: Props) 
   ];
 
   return (
-    <div
-      onClick={handleClose}
-      style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{ width: '100%', maxWidth: 480, background: '#111115', border: '1px solid #1e1e24', borderRadius: 14, overflow: 'hidden', boxShadow: '0 32px 80px rgba(0,0,0,0.8)', animation: 'matchScopeIn 0.18s ease', fontFamily: "'DM Sans','Segoe UI',sans-serif" }}
-      >
+    <div onClick={handleClose} className="ca-modal-overlay">
+      <div onClick={e => e.stopPropagation()} className="ca-modal ca-modal--md">
         {/* Header */}
-        <div style={{ padding: '18px 20px', borderBottom: '1px solid #1e1e24', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="ca-modal-header">
           <div>
-            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#e8e6e0' }}>⚡ Match me!</h2>
-            <p style={{ margin: '3px 0 0', fontSize: 12, color: '#555' }}>Choose who to search for trade matches</p>
+            <h2 className="ca-modal-title">⚡ Match me!</h2>
+            <p className="ca-modal-subtitle">Choose who to search for trade matches</p>
           </div>
-          <button onClick={handleClose} style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid #2a2a32', background: 'transparent', color: '#555', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+          <button onClick={handleClose} className="ca-icon-btn">×</button>
         </div>
 
         {/* Scope selector */}
-        <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="ca-scope-list">
           {SCOPE_OPTIONS.map(opt => {
             const active = scope === opt.id;
             return (
               <button
                 key={opt.id}
                 onClick={() => { setScope(opt.id); setError(null); }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '12px 14px', borderRadius: 10,
-                  border: `1.5px solid ${active ? '#4f46e5' : '#1e1e24'}`,
-                  background: active ? '#16182a' : '#16161c',
-                  cursor: 'pointer', textAlign: 'left', width: '100%',
-                  transition: 'all 0.12s',
-                }}
-                onMouseEnter={e => { if (!active) e.currentTarget.style.borderColor = '#2a2a3a'; }}
-                onMouseLeave={e => { if (!active) e.currentTarget.style.borderColor = '#1e1e24'; }}
+                className={`ca-scope-option${active ? ' is-active' : ''}`}
               >
-                <span style={{ fontSize: 20, flexShrink: 0 }}>{opt.icon}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: active ? '#e8e6e0' : '#888' }}>{opt.label}</div>
-                  <div style={{ fontSize: 11, color: '#444', marginTop: 1 }}>{opt.desc}</div>
+                <span className="ca-scope-icon">{opt.icon}</span>
+                <div className="ca-scope-body">
+                  <div className={`ca-scope-label${active ? ' is-active' : ''}`}>{opt.label}</div>
+                  <div className="ca-scope-desc">{opt.desc}</div>
                 </div>
-                <div style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${active ? '#4f46e5' : '#2a2a32'}`, background: active ? '#4f46e5' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {active && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff' }} />}
+                <div className={`ca-radio${active ? ' is-active' : ''}`}>
+                  {active && <div className="ca-radio-dot" />}
                 </div>
               </button>
             );
@@ -344,41 +329,39 @@ export default function MatchModal({ open, onClose, userId, onResults }: Props) 
         {/* Communities multiselect */}
         {scope === 'communities' && (
           <div style={{ padding: '0 20px 16px' }}>
-            <div style={{ background: '#0e0e12', border: '1px solid #1e1e24', borderRadius: 10, overflow: 'hidden' }}>
+            <div className="ca-comm-panel">
               {/* Select all row */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid #1e1e24' }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+              <div className="ca-comm-panel-header">
+                <span className="ca-panel-header-label">
                   {loadingComms ? 'Loading…' : `${selectedComms.size} of ${communities.length} selected`}
                 </span>
                 {!loadingComms && communities.length > 0 && (
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <button onClick={selectAllComms}   style={{ fontSize: 11, color: '#4f46e5', background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 4px' }}>Select all</button>
-                    <button onClick={deselectAllComms} style={{ fontSize: 11, color: '#444',    background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 4px' }}>Clear</button>
+                    <button onClick={selectAllComms} className="ca-link-btn ca-link-btn--accent">Select all</button>
+                    <button onClick={deselectAllComms} className="ca-link-btn ca-link-btn--muted">Clear</button>
                   </div>
                 )}
               </div>
 
               {/* Community list */}
               {loadingComms ? (
-                <div style={{ padding: '16px', textAlign: 'center', color: '#444', fontSize: 12 }}>Loading communities…</div>
+                <div style={{ padding: 16, textAlign: 'center', color: 'var(--ca-text-ghost)', fontSize: 12 }}>Loading communities…</div>
               ) : communities.length === 0 ? (
-                <div style={{ padding: '16px', textAlign: 'center', color: '#333', fontSize: 12 }}>You haven't joined any communities yet.</div>
+                <div style={{ padding: 16, textAlign: 'center', color: 'var(--ca-text-shadow)', fontSize: 12 }}>You haven't joined any communities yet.</div>
               ) : (
-                <div style={{ maxHeight: 180, overflowY: 'auto' }}>
+                <div className="ca-comm-list">
                   {communities.map(c => {
                     const checked = selectedComms.has(c.id);
                     return (
                       <div
                         key={c.id}
                         onClick={() => toggleComm(c.id)}
-                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderBottom: '1px solid #18181e', cursor: 'pointer', background: checked ? '#16182a' : 'transparent', transition: 'background 0.1s' }}
-                        onMouseEnter={e => { if (!checked) e.currentTarget.style.background = '#141418'; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = checked ? '#16182a' : 'transparent'; }}
+                        className={`ca-comm-row${checked ? ' is-checked' : ''}`}
                       >
-                        <div style={{ width: 15, height: 15, borderRadius: 4, border: `1.5px solid ${checked ? '#4f46e5' : '#2a2a32'}`, background: checked ? '#4f46e5' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          {checked && <span style={{ color: '#fff', fontSize: 9, lineHeight: 1 }}>✓</span>}
+                        <div className={`ca-checkbox${checked ? ' is-checked' : ''}`}>
+                          {checked && <span className="ca-checkbox-mark">✓</span>}
                         </div>
-                        <span style={{ fontSize: 13, color: checked ? '#e8e6e0' : '#888', fontWeight: checked ? 500 : 400 }}>{c.name}</span>
+                        <span className={`ca-comm-name${checked ? ' is-checked' : ''}`}>{c.name}</span>
                       </div>
                     );
                   })}
@@ -391,19 +374,19 @@ export default function MatchModal({ open, onClose, userId, onResults }: Props) 
         {/* Nearby geo status */}
         {scope === 'nearby' && (
           <div style={{ padding: '0 20px 16px' }}>
-            <div style={{ padding: '12px 14px', background: '#0e0e12', border: '1px solid #1e1e24', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="ca-geo-status">
               {geoStatus === 'loading' && (
                 <>
-                  <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid #2a2a32', borderTopColor: '#4f46e5', borderRadius: '50%', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />
-                  <span style={{ fontSize: 12, color: '#555' }}>Getting your location…</span>
+                  <span className="ca-spinner" />
+                  <span style={{ fontSize: 12, color: 'var(--ca-text-faint)' }}>Getting your location…</span>
                 </>
               )}
               {geoStatus === 'ok' && (
                 <>
                   <span style={{ fontSize: 16 }}>📍</span>
                   <div>
-                    <div style={{ fontSize: 12, color: '#4ade80', fontWeight: 600 }}>Location found</div>
-                    <div style={{ fontSize: 11, color: '#444', marginTop: 1 }}>Searching within {NEARBY_KM}km of your position</div>
+                    <div className="ca-geo-title ca-geo-title--ok">Location found</div>
+                    <div className="ca-geo-subtitle">Searching within {NEARBY_KM}km of your position</div>
                   </div>
                 </>
               )}
@@ -411,13 +394,13 @@ export default function MatchModal({ open, onClose, userId, onResults }: Props) 
                 <>
                   <span style={{ fontSize: 16 }}>⚠️</span>
                   <div>
-                    <div style={{ fontSize: 12, color: '#f59e0b', fontWeight: 600 }}>Location unavailable</div>
-                    <div style={{ fontSize: 11, color: '#444', marginTop: 1 }}>Allow location access in your browser and try again</div>
+                    <div className="ca-geo-title ca-geo-title--error">Location unavailable</div>
+                    <div className="ca-geo-subtitle">Allow location access in your browser and try again</div>
                   </div>
                 </>
               )}
               {geoStatus === 'idle' && (
-                <span style={{ fontSize: 12, color: '#444' }}>Requesting location…</span>
+                <span style={{ fontSize: 12, color: 'var(--ca-text-ghost)' }}>Requesting location…</span>
               )}
             </div>
           </div>
@@ -425,32 +408,28 @@ export default function MatchModal({ open, onClose, userId, onResults }: Props) 
 
         {/* Error */}
         {error && (
-          <div style={{ margin: '0 20px 12px', padding: '9px 12px', background: '#1a0a0a', border: '1px solid #3a1a1a', borderRadius: 8, fontSize: 12, color: '#c0392b' }}>
+          <div className="ca-error-box">
             {error}
           </div>
         )}
 
         {/* Footer */}
-        <div style={{ padding: '14px 20px', borderTop: '1px solid #1e1e24', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button onClick={handleClose} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #2a2a32', background: 'transparent', color: '#888', fontSize: 13, cursor: 'pointer' }}>
+        <div className="ca-modal-footer ca-modal-footer--end">
+          <button onClick={handleClose} className="ca-btn ca-btn-ghost" style={{ padding: '8px 16px' }}>
             Cancel
           </button>
           <button
             onClick={runMatch}
             disabled={!canSearch || searching}
-            style={{ padding: '8px 24px', borderRadius: 8, border: 'none', background: !canSearch || searching ? '#1e1e28' : '#4f46e5', color: !canSearch || searching ? '#444' : '#fff', fontSize: 13, fontWeight: 600, cursor: !canSearch || searching ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.15s' }}
+            className="ca-btn ca-btn-primary"
+            style={{ padding: '8px 24px' }}
           >
             {searching
-              ? <><span style={{ display: 'inline-block', width: 12, height: 12, border: '2px solid #444', borderTopColor: '#888', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />Searching…</>
+              ? <><span className="ca-spinner ca-spinner--light" style={{ width: 12, height: 12 }} />Searching…</>
               : '⚡ Find Matches'}
           </button>
         </div>
       </div>
-
-      <style>{`
-        @keyframes matchScopeIn { from { opacity: 0; transform: scale(0.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
     </div>
   );
 }

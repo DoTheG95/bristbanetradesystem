@@ -39,8 +39,13 @@ interface ListViewProps {
   ) => void;
 
   handleImageMouseLeave: () => void;
-  
+
+  requestMarkSold?: (card: CardEntry) => void;
+
   viewMode: 'grid' | 'list';
+
+  /** When true, renders cards in read-only mode (viewing another user's lists) */
+  readOnly?: boolean;
 }
 
 export default function ListView({
@@ -54,30 +59,20 @@ export default function ListView({
   handleFindSingle,
   handleImageMouseEnter,
   handleImageMouseLeave,
+  requestMarkSold,
   viewMode,
+  readOnly = false,
 }: ListViewProps) {
   if (!cards.length) {
     return (
-      <div
-        style={{
-          padding: 60,
-          textAlign: 'center',
-          color: '#888',
-        }}
-      >
+      <div className="ca-listview-empty">
         No cards found.
       </div>
     );
   }
 
 return viewMode === 'grid' ? (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-        gap: 12,
-      }}
-    >
+    <div className="ca-listview-grid">
       {cards.map((card) => (
         <CardListGrid
           key={card.id}
@@ -91,11 +86,13 @@ return viewMode === 'grid' ? (
           handleFindSingle={handleFindSingle}
           handleImageMouseEnter={handleImageMouseEnter}
           handleImageMouseLeave={handleImageMouseLeave}
+          requestMarkSold={requestMarkSold}
+          readOnly={readOnly}
         />
       ))}
     </div>
   ) : (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="ca-listview-list">
       {cards.map((card) => (
         <CardListRow
           key={card.id}
@@ -109,6 +106,8 @@ return viewMode === 'grid' ? (
           handleFindSingle={handleFindSingle}
           handleImageMouseEnter={handleImageMouseEnter}
           handleImageMouseLeave={handleImageMouseLeave}
+          requestMarkSold={requestMarkSold}
+          readOnly={readOnly}
         />
       ))}
     </div>

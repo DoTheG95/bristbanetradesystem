@@ -1,15 +1,5 @@
 import React from 'react';
 
-const RARITY_COLOURS: Record<string, string> = {
-  C: '#555',
-  U: '#4a7a6a',
-  R: '#4f6fa8',
-  SR: '#7c5abf',
-  UR: '#b8860b',
-  SEC: '#c0392b',
-  P: '#888',
-};
-
 type SelectedItem = {
   id: string;
   tcgplayer_id: string;
@@ -28,6 +18,8 @@ interface Props {
   onPriceChange: (id: string, value: string) => void;
 }
 
+const rarityClass = (rarity: string) => rarity ? `ca-rarity-${rarity.toLowerCase()}` : '';
+
 export default function SelectedCard({
   item,
   onRemove,
@@ -36,108 +28,33 @@ export default function SelectedCard({
   onPriceChange,
 }: Props) {
   return (
-    <div
-      style={{
-        background: '#16161c',
-        border: '1px solid #24242b',
-        borderRadius: 12,
-        padding: 14,
-        position: 'relative',
-      }}
-    >
+    <div className="ca-selected-card">
       <button
         onClick={() => onRemove(item.id)}
-        style={{
-          position: 'absolute',
-          top: 10,
-          right: 10,
-          width: 24,
-          height: 24,
-          border: 'none',
-          borderRadius: 6,
-          background: 'transparent',
-          color: '#555',
-          cursor: 'pointer',
-          fontSize: 14,
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.color = '#ff5c5c';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.color = '#555';
-        }}
+        className="ca-selected-card-remove"
       >
         ✕
       </button>
 
       {/* Header */}
 
-      <div
-        style={{
-          display: 'flex',
-          gap: 12,
-          marginBottom: 14,
-        }}
-      >
+      <div className="ca-selected-card-header">
         <img
           src={`https://tcgplayer-cdn.tcgplayer.com/product/${item.tcgplayer_id}_in_200x200.jpg`}
-          style={{
-            width: 44,
-            height: 44,
-            objectFit: 'contain',
-            borderRadius: 6,
-            background: '#1b1b22',
-            flexShrink: 0,
-          }}
+          className="ca-selected-card-thumb"
         />
 
-        <div
-          style={{
-            minWidth: 0,
-            flex: 1,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 13,
-              color: '#e6e6e6',
-              fontWeight: 600,
-              overflow: 'hidden',
-              whiteSpace: 'nowrap',
-              textOverflow: 'ellipsis',
-            }}
-          >
+        <div className="ca-selected-card-info">
+          <div className="ca-selected-card-name">
             {item.tcgplayer_name}
           </div>
 
-          <div
-            style={{
-              display: 'flex',
-              gap: 8,
-              marginTop: 5,
-              alignItems: 'center',
-            }}
-          >
-            <span
-              style={{
-                color: '#666',
-                fontSize: 11,
-                fontFamily: 'monospace',
-              }}
-            >
+          <div className="ca-selected-card-meta">
+            <span className="ca-selected-card-number">
               {item.card_number}
             </span>
 
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                color: RARITY_COLOURS[item.rarity] ?? '#777',
-                border: `1px solid ${RARITY_COLOURS[item.rarity] ?? '#444'}`,
-                borderRadius: 999,
-                padding: '2px 7px',
-              }}
-            >
+            <span className={`ca-badge-rarity ${rarityClass(item.rarity)}`}>
               {item.rarity}
             </span>
           </div>
@@ -146,59 +63,29 @@ export default function SelectedCard({
 
       {/* Qty + Price */}
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: 12,
-        }}
-      >
+      <div className="ca-selected-card-grid">
         {/* Qty */}
 
         <div>
-          <div
-            style={{
-              fontSize: 10,
-              color: '#666',
-              marginBottom: 5,
-              textTransform: 'uppercase',
-              letterSpacing: '.08em',
-            }}
-          >
+          <div className="ca-selected-field-label">
             Qty
           </div>
 
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              background: '#1d1d24',
-              border: '1px solid #2d2d36',
-              borderRadius: 8,
-              overflow: 'hidden',
-            }}
-          >
+          <div className="ca-qty-stepper">
             <button
               onClick={() => onDecrementQty(item.id)}
-              style={buttonStyle}
+              className="ca-qty-stepper-btn"
             >
               −
             </button>
 
-            <div
-              style={{
-                flex: 1,
-                textAlign: 'center',
-                color: '#ddd',
-                fontWeight: 600,
-              }}
-            >
+            <div className="ca-qty-stepper-value">
               {item.quantity ?? '—'}
             </div>
 
             <button
               onClick={() => onIncrementQty(item.id)}
-              style={buttonStyle}
+              className="ca-qty-stepper-btn"
             >
               +
             </button>
@@ -208,34 +95,12 @@ export default function SelectedCard({
         {/* Price */}
 
         <div>
-          <div
-            style={{
-              fontSize: 10,
-              color: '#666',
-              marginBottom: 5,
-              textTransform: 'uppercase',
-              letterSpacing: '.08em',
-            }}
-          >
+          <div className="ca-selected-field-label">
             Price
           </div>
 
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              background: '#1d1d24',
-              border: '1px solid #2d2d36',
-              borderRadius: 8,
-              paddingLeft: 10,
-            }}
-          >
-            <span
-              style={{
-                color: '#777',
-                fontWeight: 600,
-              }}
-            >
+          <div className="ca-price-stepper">
+            <span className="ca-price-sign">
               $
             </span>
 
@@ -247,16 +112,7 @@ export default function SelectedCard({
                     onPriceChange(item.id, e.target.value)
                 }
                 placeholder="0.00"
-                style={{
-                    flex: 1,
-                    maxWidth: 80,
-                    background: 'transparent',
-                    border: 'none',
-                    outline: 'none',
-                    color: '#eee',
-                    padding: '8px',
-                    fontSize: 13,
-                }}
+                className="ca-price-input-plain"
             />
           </div>
         </div>
@@ -264,13 +120,3 @@ export default function SelectedCard({
     </div>
   );
 }
-
-const buttonStyle: React.CSSProperties = {
-  width: 32,
-  height: 32,
-  border: 'none',
-  background: 'transparent',
-  color: '#888',
-  cursor: 'pointer',
-  fontSize: 16,
-};

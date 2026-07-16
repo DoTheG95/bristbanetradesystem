@@ -13,42 +13,12 @@ export default function ViewToggle({
   viewMode,
   onChange,
 }: ViewToggleProps) {
-  const buttonStyle = (
-    active: boolean
-  ): React.CSSProperties => ({
-    width: 36,
-    height: 36,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    border: 'none',
-    borderRadius: 8,
-    cursor: 'pointer',
-    transition: 'all 0.15s ease',
-    background: active ? "#4f46e5" : "transparent",
-    boxShadow: active
-    ? "0 0 18px rgba(79,70,229,.35)"
-    : "none",
-    color: active ? "#fff" : "#666",
-  });
-
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        background: '#111115',
-        border: '1px solid #1e1e24',
-        boxShadow: '0 4px 16px rgba(0,0,0,.25)',
-        borderRadius: 10,
-        padding: 4,
-        gap: 4,
-      }}
-    >
+    <div className="ca-view-toggle">
       <button
         title="Grid View"
         onClick={() => onChange('grid')}
-        style={buttonStyle(viewMode === 'grid')}
+        className={`ca-view-toggle-btn${viewMode === 'grid' ? ' is-active' : ''}`}
       >
         <svg
           width="18"
@@ -66,7 +36,7 @@ export default function ViewToggle({
       <button
         title="List View"
         onClick={() => onChange('list')}
-        style={buttonStyle(viewMode === 'list')}
+        className={`ca-view-toggle-btn${viewMode === 'list' ? ' is-active' : ''}`}
       >
         <svg
           width="18"

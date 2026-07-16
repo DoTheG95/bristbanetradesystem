@@ -117,4 +117,10 @@ export interface CardRowProps {
   ) => void;
 
   handleImageMouseLeave: () => void;
+
+  /** Tradelist items with qty > 1 route through this instead of removeCard directly, so the parent (rendered once, not per-row) can show a quantity-sold modal. */
+  requestMarkSold?: (card: CardEntry) => void;
+
+  /** When true, hides checkbox, remove button, and disables qty/price/find editing (read-only view of another user's lists) */
+  readOnly?: boolean;
 }

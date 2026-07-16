@@ -37,6 +37,7 @@ export default function PostPage() {
     const [filterMode, setFilterMode]       = useState<FilterMode>('all');
     const [userCommunities, setUserCommunities] = useState<Community[]>([]);
     const [offerTarget, setOfferTarget]     = useState<OfferTarget | null>(null);
+    const [blockedIds, setBlockedIds]       = useState<Set<string>>(new Set());
     const inputRef                          = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -50,9 +51,15 @@ export default function PostPage() {
             setUserId(session.user.id);
             setDisplayName(profile?.display_name ?? null);
             await fetchUserCommunities(session.user.id);
+            await fetchBlockedIds(session.user.id);
             fetchPosts();
         });
     }, []);
+
+    const fetchBlockedIds = async (uid: string) => {
+        const { data } = await supabase.from('user_blocks').select('blocked_id').eq('blocker_id', uid);
+        setBlockedIds(new Set((data ?? []).map((r: any) => r.blocked_id)));
+    };
 
     const fetchUserCommunities = async (uid: string) => {
         const { data: ucData } = await supabase
@@ -111,6 +118,7 @@ export default function PostPage() {
     userCommunities.forEach(c => { communityNameMap[c.id] = c.name; });
 
     const filteredPosts = posts
+        .filter(post => !blockedIds.has(post.user_id))
         .filter(post => {
             if (filterMode === 'all') return true;
             if (filterMode === 'public') return post.is_public === true;
@@ -129,10 +137,10 @@ export default function PostPage() {
     if (!userId) return null;
 
     return (
-        <div style={{ minHeight: '100vh', background: '#0c0c0e', color: '#e8e6e0', fontFamily: 'sans-serif' }}>
+        <div className="ca-page">
             <Navbar />
 
-            <div style={{ maxWidth: 700, margin: '40px auto', padding: '0 20px' }}>
+            <div className="ca-container--narrow">
 
                 <CreatePostBox
                     userId={userId}
@@ -150,7 +158,7 @@ export default function PostPage() {
                             <button
                                 key={String(mode)}
                                 onClick={() => setFilterMode(mode)}
-                                style={{ padding: '5px 14px', borderRadius: 99, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid', transition: 'all 0.15s', background: active ? '#1e1e32' : 'transparent', borderColor: active ? '#4f46e5' : '#2a2a32', color: active ? '#818cf8' : '#555' }}
+                                className={`ca-pill-toggle${active ? ' is-active' : ''}`}
                             >
                                 {label}
                             </button>
@@ -159,8 +167,8 @@ export default function PostPage() {
                 </div>
 
                 {/* Search */}
-                <div style={{ position: 'relative', marginBottom: 20, display: 'flex', alignItems: 'center' }}>
-                    <svg style={{ position: 'absolute', left: 10, width: 14, height: 14, color: '#444', flexShrink: 0, pointerEvents: 'none' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <div className="ca-search-wrap" style={{ marginBottom: 20 }}>
+                    <svg className="ca-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
                     </svg>
                     <input
@@ -168,15 +176,15 @@ export default function PostPage() {
                         value={searchText}
                         onChange={e => setSearchText(e.target.value)}
                         placeholder="Search posts, cards, or users..."
-                        style={{ width: '100%', padding: '9px 36px 9px 32px', background: '#18181e', border: '1px solid #2a2a32', borderRadius: 8, color: '#e8e6e0', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
+                        className="ca-input ca-input--search"
                     />
                 </div>
 
                 {/* Feed */}
                 {loading ? (
-                    <div style={{ textAlign: 'center', color: '#444', padding: '40px 0', fontSize: 13 }}>Loading posts…</div>
+                    <div className="ca-simple-empty">Loading posts…</div>
                 ) : filteredPosts.length === 0 ? (
-                    <div style={{ textAlign: 'center', color: '#333', padding: '40px 0', fontSize: 13 }}>No posts found.</div>
+                    <div className="ca-simple-empty">No posts found.</div>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                         {filteredPosts.map(post => (
@@ -231,24 +239,24 @@ export function PostCard({ post, currentUserId, communityNameMap, onDelete, onMa
     const canOffer = currentUserId && post.user_id !== currentUserId && post.cards?.length > 0;
 
     return (
-        <div style={{ background: '#111115', border: '1px solid #1e1e24', borderRadius: 12, padding: 20 }}>
+        <div className="ca-post-card">
             {/* Post header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+            <div className="ca-post-header">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 14, fontWeight: 700, color: '#e8e6e0' }}>
+                        <span className="ca-post-author">
                             {post.display_name || 'Anonymous Collector'}
                         </span>
-                        <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: post.post_type === 'wishlist' ? '#ec4899' : '#4f46e5' }}>
+                        <span className={`ca-post-type-badge ${post.post_type === 'wishlist' ? 'ca-post-type-badge--wishlist' : 'ca-post-type-badge--tradelist'}`}>
                             {post.post_type}
                         </span>
                         {post.cashonly && (
-                            <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', color: '#22c55e', letterSpacing: '0.05em' }}>
+                            <span className="ca-post-cash-badge">
                                 Cash only
                             </span>
                         )}
                     </div>
-                    <span style={{ fontSize: 11, color: '#555' }}>{audienceLabel}</span>
+                    <span className="ca-post-audience">{audienceLabel}</span>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -256,9 +264,8 @@ export function PostCard({ post, currentUserId, communityNameMap, onDelete, onMa
                     {canOffer && (
                         <button
                             onClick={() => onMakeOffer(post)}
-                            style={{ padding: '5px 14px', borderRadius: 7, border: 'none', background: '#4f46e5', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'background 0.15s' }}
-                            onMouseEnter={e => (e.currentTarget.style.background = '#6056f5')}
-                            onMouseLeave={e => (e.currentTarget.style.background = '#4f46e5')}
+                            className="ca-make-offer-btn"
+                            style={{ padding: '5px 14px' }}
                         >
                             Make Offer
                         </button>
@@ -267,16 +274,14 @@ export function PostCard({ post, currentUserId, communityNameMap, onDelete, onMa
                     {currentUserId === post.user_id && (
                         <button
                             onClick={() => onDelete(post.id)}
-                            style={{ background: 'transparent', border: 'none', color: '#444', cursor: 'pointer', fontSize: 18, padding: '0 4px' }}
-                            onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-                            onMouseLeave={e => (e.currentTarget.style.color = '#444')}
+                            className="ca-close-x"
                         >×</button>
                     )}
                 </div>
             </div>
 
             {/* Content */}
-            <p style={{ color: '#d4d2cc', fontSize: 15, lineHeight: 1.5, marginBottom: post.cards?.length > 0 ? 0 : 0, whiteSpace: 'pre-wrap' }}>
+            <p className="ca-post-content" style={{ marginBottom: 0 }}>
                 {post.content}
             </p>
 
@@ -284,24 +289,24 @@ export function PostCard({ post, currentUserId, communityNameMap, onDelete, onMa
             {post.cards && post.cards.length > 0 && (
                 <>
                     <div
-                        style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingTop: 12, borderTop: '1px solid #18181e', cursor: 'pointer' }}
+                        className="ca-post-preview-row"
                         onClick={() => setOpenModal(post.cards)}
                     >
                         {post.cards.slice(0, 5).map((card: any, i: number) => (
                             <div
                                 key={i}
-                                style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, padding: '10px 12px', background: '#0c0c0e', border: '1px solid #1e1e24', borderRadius: 10, color: '#888', flexShrink: 0 }}
+                                className="ca-post-preview-tile"
                             >
                                 <img
                                     src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`}
                                     alt={card.tcgplayer_name}
-                                    style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, background: '#111' }}
+                                    className="ca-post-preview-img"
                                 />
-                                <span style={{ width: 80, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 11 }}>
+                                <span className="ca-post-preview-name">
                                     {card.tcgplayer_name}
                                 </span>
                                 {card.price != null && (
-                                    <span style={{ width: 80, textAlign: 'center', fontSize: 11, fontWeight: 600, color: '#4ade80' }}>
+                                    <span className="ca-post-preview-price">
                                         ${parseFloat(card.price).toFixed(2)}
                                     </span>
                                 )}
@@ -309,7 +314,7 @@ export function PostCard({ post, currentUserId, communityNameMap, onDelete, onMa
                         ))}
 
                         {post.cards.length > 5 && (
-                            <div style={{ width: 80, height: 80, borderRadius: 8, background: '#1e1e24', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: '#888', flexShrink: 0, alignSelf: 'center' }}>
+                            <div className="ca-post-preview-more">
                                 +{post.cards.length - 5}
                             </div>
                         )}
@@ -321,22 +326,22 @@ export function PostCard({ post, currentUserId, communityNameMap, onDelete, onMa
             {openModal && (
                 <div
                     onClick={() => setOpenModal(null)}
-                    style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}
+                    className="ca-modal-overlay"
                 >
                     <div
                         onClick={e => e.stopPropagation()}
-                        style={{ background: '#111115', padding: 20, borderRadius: 12, maxWidth: 600, width: '90%', maxHeight: '80vh', overflowY: 'auto' }}
+                        className="ca-post-fullmodal"
                     >
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 12 }}>
+                        <div className="ca-post-fullmodal-grid">
                             {openModal.map((card, i) => (
-                                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                <div key={i} className="ca-post-fullmodal-item">
                                     <img
                                         src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`}
                                         alt={card.tcgplayer_name}
-                                        style={{ width: '100%', borderRadius: 8 }}
+                                        className="ca-post-fullmodal-img"
                                     />
                                     {card.price != null && (
-                                        <span style={{ textAlign: 'center', fontSize: 11, fontWeight: 600, color: '#4ade80' }}>
+                                        <span className="ca-post-fullmodal-price">
                                             ${parseFloat(card.price).toFixed(2)}
                                         </span>
                                     )}

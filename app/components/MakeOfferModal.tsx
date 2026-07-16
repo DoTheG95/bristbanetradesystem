@@ -215,39 +215,23 @@ const handleSubmit = useCallback(async () => {
   );
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 10001,
-        background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
-      }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          width: '100%', maxWidth: 640, maxHeight: '90vh',
-          background: '#111115', border: '1px solid #1e1e24', borderRadius: 14,
-          display: 'flex', flexDirection: 'column',
-          boxShadow: '0 32px 80px rgba(0,0,0,0.8)',
-          animation: 'modalIn 0.18s ease',
-        }}
-      >
+    <div onClick={onClose} className="ca-modal-overlay">
+      <div onClick={e => e.stopPropagation()} className="ca-modal ca-modal--xl ca-modal--max-h">
         {/* Header */}
-        <div style={{ padding: '18px 20px', borderBottom: '1px solid #1e1e24', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+        <div className="ca-modal-header">
           <div>
-            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#e8e6e0' }}>Make an Offer</h2>
-            <p style={{ margin: '3px 0 0', fontSize: 12, color: '#555' }}>to {receiverName}</p>
+            <h2 className="ca-modal-title">Make an Offer</h2>
+            <p className="ca-modal-subtitle">to {receiverName}</p>
           </div>
-          <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid #2a2a32', background: 'transparent', color: '#555', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+          <button onClick={onClose} className="ca-icon-btn">×</button>
         </div>
 
         {/* Body */}
-        <div style={{ overflowY: 'auto', flex: 1, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div className="ca-modal-body">
 
           {/* Cards I'm requesting */}
           <section>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#4f46e5', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+            <div className="ca-modal-section-label ca-modal-section-label--accent">
               Cards you want from them
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -258,23 +242,18 @@ const handleSubmit = useCallback(async () => {
                 return (
                   <div
                     key={card.tcgplayer_id}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px',
-                      background: selected ? '#16182a' : '#16161c',
-                      border: `1px solid ${selected ? '#4f46e5' : '#1e1e24'}`,
-                      borderRadius: 7, cursor: 'pointer', transition: 'all 0.12s',
-                    }}
+                    className={`ca-offer-row${selected ? ' is-selected' : ''}`}
                     onClick={() => toggleRequesting(card)}
                   >
                     <img
                       src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`}
                       alt={card.tcgplayer_name}
-                      style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
+                      className="ca-mini-card-thumb"
                     />
 
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.tcgplayer_name}</div>
-                      <div style={{ fontSize: 10, color: '#444', fontFamily: 'monospace' }}>{card.card_number}</div>
+                    <div className="ca-mini-card-info">
+                      <div className="ca-mini-card-name">{card.tcgplayer_name}</div>
+                      <div className="ca-mini-card-number">{card.card_number}</div>
                     </div>
 
                     {/* Qty */}
@@ -286,16 +265,16 @@ const handleSubmit = useCallback(async () => {
                         onClick={e => e.stopPropagation()}
                         onChange={e => updateRequestQty(card.tcgplayer_id, e.target.value)}
                         placeholder={card.qty != null ? `max ${card.qty}` : 'qty'}
-                        style={{ width: 56, padding: '3px 6px', background: '#1e1e28', border: '1px solid #3a3a50', borderRadius: 5, color: '#d4d2cc', fontSize: 12, textAlign: 'center', outline: 'none', flexShrink: 0 }}
+                        className="ca-offer-qty-input"
                       />
                     )}
 
                     {/* Price column */}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, flexShrink: 0, minWidth: 100 }}>
+                    <div className="ca-offer-price-col">
                       {/* Seller's asking price — always visible */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span style={{ fontSize: 10, color: '#444' }}>asking</span>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: card.price != null ? '#4ade80' : '#333' }}>
+                        <span style={{ fontSize: 10, color: 'var(--ca-text-ghost)' }}>asking</span>
+                        <span className={`ca-offer-asking-value${card.price != null ? ' is-set' : ''}`}>
                           {card.price != null ? `$${card.price.toFixed(2)}` : '—'}
                         </span>
                       </div>
@@ -303,16 +282,16 @@ const handleSubmit = useCallback(async () => {
                       {/* Counter price input — only when selected */}
                       {selected && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <span style={{ fontSize: 10, color: '#444' }}>offer</span>
+                          <span style={{ fontSize: 10, color: 'var(--ca-text-ghost)' }}>offer</span>
                           <div style={{ position: 'relative' }}>
-                            <span style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', fontSize: 10, color: '#f59e0b', pointerEvents: 'none' }}>$</span>
+                            <span className="ca-counter-dollar-sign">$</span>
                             <input
                               type="number" min={0} step={0.01}
                               value={draft?.counter_price ?? ''}
                               placeholder={card.price != null ? card.price.toFixed(2) : '0.00'}
                               onClick={e => e.stopPropagation()}
                               onChange={e => updateCounterPrice(card.tcgplayer_id, e.target.value)}
-                              style={{ width: 64, padding: '3px 5px 3px 14px', background: '#1a1810', border: '1px solid #50401a', borderRadius: 5, color: '#f59e0b', fontSize: 12, outline: 'none' }}
+                              className="ca-counter-input"
                             />
                           </div>
                         </div>
@@ -320,8 +299,8 @@ const handleSubmit = useCallback(async () => {
                     </div>
 
                     {/* Checkbox */}
-                    <div style={{ width: 16, height: 16, borderRadius: 4, border: `1.5px solid ${selected ? '#4f46e5' : '#2a2a32'}`, background: selected ? '#4f46e5' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      {selected && <span style={{ color: '#fff', fontSize: 10, lineHeight: 1 }}>✓</span>}
+                    <div className={`ca-checkbox${selected ? ' is-checked' : ''}`}>
+                      {selected && <span className="ca-checkbox-mark">✓</span>}
                     </div>
                   </div>
                 );
@@ -330,19 +309,19 @@ const handleSubmit = useCallback(async () => {
           </section>
 
           {/* Divider */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ flex: 1, height: 1, background: '#1e1e24' }} />
-            <span style={{ fontSize: 11, color: '#333', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Your offer in return (optional)</span>
-            <div style={{ flex: 1, height: 1, background: '#1e1e24' }} />
+          <div className="ca-divider-label">
+            <div className="ca-divider" />
+            <span>Your offer in return (optional)</span>
+            <div className="ca-divider" />
           </div>
 
           {/* Cards I'm offering */}
           <section>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+            <div className="ca-modal-section-label ca-modal-section-label--amber">
               Cards from your trade list
             </div>
             {loadingMine ? (
-              <div style={{ fontSize: 12, color: '#444', padding: '12px 0' }}>Loading your cards…</div>
+              <div style={{ fontSize: 12, color: 'var(--ca-text-ghost)', padding: '12px 0' }}>Loading your cards…</div>
             ) : (
               <>
                 <input
@@ -350,36 +329,31 @@ const handleSubmit = useCallback(async () => {
                   placeholder="Search your cards…"
                   value={myCardSearch}
                   onChange={e => setMyCardSearch(e.target.value)}
-                  style={{ width: '100%', marginBottom: 8, padding: '6px 10px', background: '#18181e', border: '1px solid #2a2a32', borderRadius: 7, color: '#d4d2cc', fontSize: 12, outline: 'none', boxSizing: 'border-box' }}
+                  className="ca-offer-search-input"
                 />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 180, overflowY: 'auto' }}>
+                <div className="ca-offer-list-scroll">
                   {filteredMyTradelist.length === 0 ? (
-                    <div style={{ fontSize: 12, color: '#333', padding: '8px 0' }}>No cards on your trade list yet.</div>
+                    <div style={{ fontSize: 12, color: 'var(--ca-text-shadow)', padding: '8px 0' }}>No cards on your trade list yet.</div>
                   ) : filteredMyTradelist.map(card => {
                     const selected = !!offering.find(c => c.tcgplayer_id === card.tcgplayer_id);
                     const draft    = offering.find(c => c.tcgplayer_id === card.tcgplayer_id);
                     return (
                       <div
                         key={card.tcgplayer_id}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px',
-                          background: selected ? '#1a1810' : '#16161c',
-                          border: `1px solid ${selected ? '#f59e0b' : '#1e1e24'}`,
-                          borderRadius: 7, cursor: 'pointer', transition: 'all 0.12s',
-                        }}
+                        className={`ca-offer-row ca-offer-row--amber${selected ? ' is-selected' : ''}`}
                         onClick={() => toggleOffering(card)}
                       >
                         <img
                           src={`https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayer_id}_in_200x200.jpg`}
                           alt={card.tcgplayer_name}
-                          style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
+                          className="ca-mini-card-thumb"
                         />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 12, fontWeight: 500, color: '#d4d2cc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.tcgplayer_name}</div>
-                          <div style={{ fontSize: 10, color: '#444', fontFamily: 'monospace' }}>{card.card_number}</div>
+                        <div className="ca-mini-card-info">
+                          <div className="ca-mini-card-name">{card.tcgplayer_name}</div>
+                          <div className="ca-mini-card-number">{card.card_number}</div>
                         </div>
                         {card.price != null && (
-                          <span style={{ fontSize: 11, fontWeight: 600, color: '#4ade80', flexShrink: 0 }}>
+                          <span className="ca-mini-card-price">
                             ${card.price.toFixed(2)}
                           </span>
                         )}
@@ -390,11 +364,11 @@ const handleSubmit = useCallback(async () => {
                             onClick={e => e.stopPropagation()}
                             onChange={e => updateOfferQty(card.tcgplayer_id, e.target.value)}
                             placeholder="qty"
-                            style={{ width: 52, padding: '3px 6px', background: '#1e1e18', border: '1px solid #50401a', borderRadius: 5, color: '#d4d2cc', fontSize: 12, textAlign: 'center', outline: 'none' }}
+                            className="ca-offer-qty-input"
                           />
                         )}
-                        <div style={{ width: 16, height: 16, borderRadius: 4, border: `1.5px solid ${selected ? '#f59e0b' : '#2a2a32'}`, background: selected ? '#f59e0b' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          {selected && <span style={{ color: '#000', fontSize: 10, lineHeight: 1 }}>✓</span>}
+                        <div className={`ca-checkbox${selected ? ' is-checked-amber' : ''}`}>
+                          {selected && <span className="ca-checkbox-mark ca-checkbox-mark--dark">✓</span>}
                         </div>
                       </div>
                     );
@@ -406,65 +380,58 @@ const handleSubmit = useCallback(async () => {
 
           {/* Message */}
           <section>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Message (optional)</div>
+            <div className="ca-modal-section-label ca-modal-section-label--muted">Message (optional)</div>
             <textarea
               value={message}
               onChange={e => setMessage(e.target.value)}
               placeholder="Add a note to your offer…"
               maxLength={500}
               rows={3}
-              style={{ width: '100%', padding: '8px 10px', background: '#18181e', border: '1px solid #2a2a32', borderRadius: 7, color: '#d4d2cc', fontSize: 13, outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }}
+              className="ca-textarea"
             />
           </section>
 
           {/* Meet date */}
           <section>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Proposed meet date (optional)</div>
+            <div className="ca-modal-section-label ca-modal-section-label--muted">Proposed meet date (optional)</div>
             <input
               type="date"
               value={meetDate}
               onChange={e => setMeetDate(e.target.value)}
-              style={{ padding: '6px 10px', background: '#18181e', border: '1px solid #2a2a32', borderRadius: 7, color: '#d4d2cc', fontSize: 13, outline: 'none', colorScheme: 'dark' }}
+              className="ca-date-input"
             />
           </section>
 
           {error && (
-            <div style={{ fontSize: 12, color: '#c0392b', padding: '8px 12px', background: '#1a0a0a', borderRadius: 7, border: '1px solid #3a1a1a' }}>
+            <div className="ca-error-box ca-error-box--inline">
               {error}
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div style={{ padding: '14px 20px', borderTop: '1px solid #1e1e24', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-          <span style={{ fontSize: 12, color: '#444' }}>
+        <div className="ca-modal-footer">
+          <span className="ca-footer-text">
             {requesting.length} card{requesting.length !== 1 ? 's' : ''} requested
             {offering.length > 0 ? `, ${offering.length} offered` : ''}
           </span>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="ca-footer-btn-group">
             <button
               onClick={onClose}
-              style={{ padding: '8px 16px', borderRadius: 7, border: '1px solid #2a2a32', background: 'transparent', color: '#888', fontSize: 13, cursor: 'pointer' }}
+              className="ca-btn ca-btn-ghost ca-btn-md"
             >
               Cancel
             </button>
             <button
               onClick={handleSubmit}
               disabled={submitting || requesting.length === 0}
-              style={{ padding: '8px 20px', borderRadius: 7, border: 'none', background: submitting || requesting.length === 0 ? '#1e1e28' : '#4f46e5', color: submitting || requesting.length === 0 ? '#444' : '#fff', fontSize: 13, fontWeight: 600, cursor: requesting.length === 0 ? 'not-allowed' : 'pointer' }}
+              className="ca-btn ca-btn-primary ca-btn-md"
             >
               {submitting ? 'Sending…' : 'Send Offer'}
             </button>
           </div>
         </div>
       </div>
-
-      <style>{`
-        @keyframes modalIn {
-          from { opacity: 0; transform: scale(0.96) translateY(8px); }
-          to   { opacity: 1; transform: scale(1) translateY(0); }
-        }
-      `}</style>
     </div>
   );
 }
