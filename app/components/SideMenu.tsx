@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 const navLinks = [
   { name: 'My Lists', href: '/main' },
   { name: 'Posts',    href: '/postpage' },
-  { name: 'Locals',   href: '/localarea' },
+  // { name: 'Locals',   href: '/localarea' }, update a bit later
 ];
 
 export default function SideMenu() {
