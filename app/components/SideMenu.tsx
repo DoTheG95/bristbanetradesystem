@@ -1,16 +1,13 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { usePathname } from 'next/navigation';
-
-const navLinks = [
-  { name: 'My Lists', href: '/main' },
-  { name: 'Posts',    href: '/postpage' },
-  // { name: 'Locals',   href: '/localarea' }, update a bit later
-];
+import UnregisterModal from './UnregisterModal';
+import { navLinks } from './navLinks';
 
 export default function SideMenu() {
   const pathname = usePathname();
+  const [showUnregister, setShowUnregister] = useState(false);
 
   return (
     <nav className="ca-side-menu">
@@ -28,6 +25,14 @@ export default function SideMenu() {
           );
         })}
       </div>
+
+      <div className="ca-side-menu-footer">
+        <button onClick={() => setShowUnregister(true)} className="ca-side-menu-link ca-side-menu-link--danger">
+          Delete account
+        </button>
+      </div>
+
+      <UnregisterModal open={showUnregister} onClose={() => setShowUnregister(false)} />
     </nav>
   );
 }

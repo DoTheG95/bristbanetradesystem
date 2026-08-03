@@ -10,6 +10,7 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -41,6 +42,7 @@ export default function OnboardingPage() {
     if (!trimmed) { setError('Please enter a display name.'); return; }
     if (trimmed.length < 2) { setError('Display name must be at least 2 characters.'); return; }
     if (trimmed.length > 32) { setError('Display name must be under 32 characters.'); return; }
+    if (!agreedToTerms) { setError('Please agree to the disclaimer to continue.'); return; }
     if (!userId) { setError('Session expired. Please log in again.'); return; }
 
     setLoading(true);
@@ -48,7 +50,7 @@ export default function OnboardingPage() {
     // upsert handles both the case where the profiles row doesn't exist yet
     const { error: updateError } = await supabase
       .from('profiles')
-      .update({ display_name: trimmed })
+      .update({ display_name: trimmed, terms_accepted_at: new Date().toISOString() })
       .eq('id', userId);
 
     setLoading(false);
@@ -96,13 +98,39 @@ export default function OnboardingPage() {
             {displayName.length}/32
           </div>
 
+          <div className="ca-terms-box">
+            <p className="ca-terms-title">Before you start trading</p>
+            <p className="ca-terms-text">
+              Cardboard Addiction is a platform that helps Digimon TCG collectors across
+              Australia and New Zealand find and connect with each other. We don&apos;t verify
+              listings, facilitate payments, or take part in any trade — we simply help you
+              find people who claim to have what you&apos;re looking for.
+            </p>
+            <ul className="ca-terms-list">
+              <li>We are not responsible for failed, incomplete, fraudulent, or unsatisfactory trades between users.</li>
+              <li>We don&apos;t verify that a listed card exists, matches its description, or is actually in the seller&apos;s possession.</li>
+              <li>All trades are arranged directly between users, at their own risk — you&apos;re responsible for confirming a trader&apos;s legitimacy and the item&apos;s condition before completing a trade.</li>
+              <li>We recommend meeting in person where possible, and using secure, trackable methods for remote trades.</li>
+            </ul>
+          </div>
+
+          <div
+            className="ca-terms-check-row"
+            onClick={() => setAgreedToTerms(v => !v)}
+          >
+            <div className={`ca-checkbox${agreedToTerms ? ' is-checked' : ''}`}>
+              {agreedToTerms && <span className="ca-checkbox-mark">✓</span>}
+            </div>
+            <span className="ca-terms-check-label">I have read and agree to the above.</span>
+          </div>
+
           {error && <p className="ca-auth-error">{error}</p>}
 
           <button
             onClick={handleSubmit}
-            disabled={loading}
+            disabled={loading || !agreedToTerms}
             className="ca-auth-btn-primary"
-            style={{ marginTop: 20 }}
+            style={{ marginTop: 16 }}
           >
             {loading ? 'Saving…' : 'Continue'}
           </button>
